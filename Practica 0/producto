@@ -1,0 +1,2 @@
+let prod = fix(prod:Nat->Nat->Nat)(m:Nat)->
+    fun(n:Nat)-> ifz n then 0 else suma m (prod m (n-1))

@@ -1,0 +1,4 @@
+let mcd = fix(mcd: Nat->Nat->Nat) (m:Nat) -> 
+              fun(n:Nat) -> ifz n then m else 
+		(ifz (resta n m) then (mcd n (resta m n)) 
+                     else (mcd m (resta n m)))
