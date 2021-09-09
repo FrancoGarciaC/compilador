@@ -1,0 +1,19 @@
+Terminos
+---------
+let x : τ = t in t 0
+let f (x : τ ) : τ 0 = t in t 0
+fun (x 1 : τ 1 ) . . . (x n : τ n ) -> t
+let f (x 1 : τ 1 ) . . . (x n : τ n ) : τ = t in t 0
+let rec f (x 1 : τ 1 ) . . . (x n : τ n ) : τ
+
+Declaraciones
+---------------
+let x : τ = t 
+let f (x : τ ) : τ 0 
+let f (x 1 : τ 1 ) . . . (x n : τ n ) : τ = t
+
+
+
+Operadores
+------------
+let f (g : Nat -> Nat) : Nat = t in f (print "x=")

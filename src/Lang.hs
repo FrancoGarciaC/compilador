@@ -59,6 +59,8 @@ data Tm info var =
   | Let info Name Ty (Tm info var)  (Tm info var)
   deriving (Show, Functor)
 
+-- type STm = 
+
 type NTerm = Tm Pos Name   -- ^ 'Tm' tiene 'Name's como variables ligadas y libres y globales, guarda posición
 type Term = Tm Pos Var     -- ^ 'Tm' con índices de De Bruijn como variables ligadas, y nombres para libres y globales, guarda posición
 
