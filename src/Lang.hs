@@ -36,17 +36,46 @@ data BinaryOp = Add | Sub
   deriving Show
 
 -- | tipo de datos de declaraciones, parametrizado por el tipo del cuerpo de la declaración
-data Decl a = Decl
+{-data Decl a = Decl
   { declPos  :: Pos
   , declName :: Name
   , declBody :: a
   }
+  deriving (Show, Functor)-}
+
+data SDecl a = SDecl
+  { declPos  :: Pos
+  , declRec  :: Bool
+  , declName :: Name
+  , declArgs :: [(Name,Ty)]
+  , declType :: Ty
+  , declBody :: a
+  }
   deriving (Show, Functor)
+
+
 
 -- | AST de los términos. 
 --   - info es información extra que puede llevar cada nodo. 
 --       Por ahora solo la usamos para guardar posiciones en el código fuente.
---   - var es el tipo de la variables. Es 'Name' para fully named y 'Var' para locally closed. 
+--   - var es el tipo de la variables. Es 'Name' para fully named y 'Var' para locally closed.
+
+
+data Stm info var =     
+    Sv info var
+  | SConst info var  
+  | SPrint info String (Stm info var)
+  | Slam info [(Name,Ty)] (Stm info var)
+  | SBinaryOp info BinaryOp (Stm info var) (Stm info var)
+  | SApp info (Stm info var) (Stm info var) 
+  | SLet info Bool Name [(Name,Ty)] Ty (Stm info var)  (Stm info var)
+  | SFix info Name Ty [(Name,Ty)] (Stm info var)
+  | SIfZ info (Stm info var) (Stm info var) (Stm info var)
+  
+
+  
+
+
 data Tm info var =
     V info var
   | Const info Const
@@ -57,9 +86,13 @@ data Tm info var =
   | Fix info Name Ty Name Ty (Tm info var)
   | IfZ info (Tm info var) (Tm info var) (Tm info var)
   | Let info Name Ty (Tm info var)  (Tm info var)
+  
   deriving (Show, Functor)
 
--- type STm = 
+
+
+
+
 
 type NTerm = Tm Pos Name   -- ^ 'Tm' tiene 'Name's como variables ligadas y libres y globales, guarda posición
 type Term = Tm Pos Var     -- ^ 'Tm' con índices de De Bruijn como variables ligadas, y nombres para libres y globales, guarda posición

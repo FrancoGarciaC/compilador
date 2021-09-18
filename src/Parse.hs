@@ -102,7 +102,8 @@ table = [[binary "+" Add Ex.AssocLeft,
           binary "-" Sub Ex.AssocLeft]]
 
 expr :: P NTerm
-expr = Ex.buildExpressionParser table tm
+expr = Ex.buildExpressionParser table tm 
+       
 
 atom :: P NTerm
 atom =     (flip Const <$> const <*> getPos)
@@ -117,13 +118,17 @@ binding = do v <- var
              ty <- typeP
              return (v, ty)
 
-lam :: P NTerm
-lam = do i <- getPos
-         reserved "fun"
-         (v,ty) <- parens binding
-         reservedOp "->"
-         t <- expr
-         return (Lam i v ty t)
+-- lam :: P NTerm
+-- lam = do i <- getPos
+--          reserved "fun"
+--          (v,ty) <- parens binding 
+--          reservedOp "->"
+--          t <- expr
+--          return (Lam i v ty t)
+
+
+binder = parens binding
+
 
 -- Nota el parser app también parsea un solo atom.
 app :: P NTerm
@@ -142,39 +147,125 @@ ifz = do i <- getPos
          e <- expr
          return (IfZ i c t e)
 
-fix :: P NTerm
+
+{-fix :: P NTerm
 fix = do i <- getPos
          reserved "fix"
          (f, fty) <- parens binding
          (x, xty) <- parens binding
          reservedOp "->"
          t <- expr
-         return (Fix i f fty x xty t)
+         return (Fix i f fty x xty t)-}
 
-letexp :: P NTerm
+
+{-letexp :: P NTerm
 letexp = do
   i <- getPos
   reserved "let"
-  (v,ty) <- parens binding
+  (v,ty) <- parens binding <|>  binding -- Agregamos para que parsee sin parentesis
   reservedOp "="  
   def <- expr
   reserved "in"
   body <- expr
-  return (Let i v ty def body)
+  return (Let i v ty def body)-}
+
+-- letexp :: P Stm
+-- letexp = do
+--   i <- getPos
+--   reserved "let"
+--   ls <- many binder -- Agregamos para que parsee sin parentesis
+--   reservedOp "="  
+--   def <- expr
+--   reserved "in"
+--   body <- expr
+--   return (SLet i ls def body)
+
+sletexp :: P Stm
+sletexp = do
+  i <- getPos
+  reserved "let"  
+  name <- var
+  ls <- many binder -- Agregamos para que parsee sin parentesis
+  reservedOp ":"  
+  retty <- typeP
+  reservedOp "="  
+  def <- expr
+  let rec = case def of
+              (SFix _) -> True
+              _ -> False 
+  reserved "in"
+  body <- expr
+  return (SLet rec ls def body)
+
+
+sfix :: P Stm
+sfix = do i <- getPos
+          reserved "fix"
+          (f, fty) <- binder
+          ls <- many binder
+          reservedOp "->"
+          t <- expr
+          return (Fix i f fty ls t)
+
+slam :: P Stm
+slam = do i <- getPos
+          reserved "fun"
+          ls <- many binder
+          reservedOp "->"
+          t <- expr
+          return (SLam i ls t)
+
+
+-- Nota el parser app también parsea un solo atom.
+sapp :: P Stm
+sapp = (do i <- getPos
+           f <- atom
+           args <- many atom
+           return (foldl (SApp i) f args))
+
+sifz :: P Stm
+sifz = do i <- getPos
+          reserved "ifz"
+          c <- expr
+          reserved "then"
+          t <- expr
+          reserved "else"
+          e <- expr
+          return (SIfZ i c t e)
+
+
 
 -- | Parser de términos
-tm :: P NTerm
-tm = app <|> lam <|> ifz <|> printOp <|> fix <|> letexp
+--tm :: P NTerm
+--tm = app <|> lam <|> ifz <|> printOp <|> fix <|> letexp <|> desugar stm
+
+-- Parser de sintactica sugar
+stm :: P Stm
+stm = app <|> lam <|> ifz <|> printOp <|> fix <|> letexp
 
 -- | Parser de declaraciones
-decl :: P (Decl NTerm)
+{-decl :: P (Decl NTerm)
 decl = do 
      i <- getPos
      reserved "let"
      v <- var
      reservedOp "="
      t <- expr
-     return (Decl i v t)
+     return (Decl i v t)-}
+
+sdecl :: P (SDecl Stm)
+sdecl = do 
+     i <- getPos
+     reserved "let"
+     name <- var
+     ls <- many binder
+     ty <- typeP
+     reservedOp "="
+     t <- expr
+     let rec  = case t of 
+                   (SFix _) -> True
+                   _ -> False
+     return (SDecl i rec name ls ty t)
 
 -- | Parser de programas (listas de declaraciones) 
 program :: P [Decl NTerm]
@@ -184,6 +275,13 @@ program = many decl
 -- Útil para las sesiones interactivas
 declOrTm :: P (Either (Decl NTerm) NTerm)
 declOrTm =  try (Left <$> decl) <|> (Right <$> expr)
+
+
+declOrTn :: P (Either (Decl NTerm) NTerm)
+declOrtn = try (Left <$> desugar(decl)  <|> (Right <$> expr) ) 
+
+
+
 
 -- Corre un parser, chequeando que se pueda consumir toda la entrada
 runP :: P a -> String -> String -> Either ParseError a

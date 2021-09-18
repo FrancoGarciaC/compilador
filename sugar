@@ -1,8 +1,8 @@
 Terminos
 ---------
-let x : τ = t in t 0
-let f (x : τ ) : τ 0 = t in t 0
-fun (x 1 : τ 1 ) . . . (x n : τ n ) -> t
+let x : τ = t in t 0 => let (x : τ) = t in t 
+let f (x : τ ) : τ  = t in t 0 => fun (x : τ ) -> t in t 
+fun (x 1 : τ 1 ) . . . (x n : τ n ) -> t  => fun (x 1 : τ 1 ) -> . . . -> fun (x n : τ n ) -> t
 let f (x 1 : τ 1 ) . . . (x n : τ n ) : τ = t in t 0
 let rec f (x 1 : τ 1 ) . . . (x n : τ n ) : τ
 
@@ -17,3 +17,23 @@ let f (x 1 : τ 1 ) . . . (x n : τ n ) : τ = t
 Operadores
 ------------
 let f (g : Nat -> Nat) : Nat = t in f (print "x=")
+
+
+Sinonimos de tipo
+------------------
+type n = τ
+
+
+multibinders
+------------
+let f  (x 0 x 1 · · · x n : τ )
+
+Sum Int Int
+
+3 + 4
+(TInt 3)  Plus (TInt 4) -> Sum 3 4 
+
+
+
+
+
