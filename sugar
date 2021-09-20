@@ -6,6 +6,9 @@ fun (x 1 : τ 1 ) . . . (x n : τ n ) -> t  => fun (x 1 : τ 1 ) -> . . . -> fun
 let f (x 1 : τ 1 ) . . . (x n : τ n ) : τ = t in t 0
 let rec f (x 1 : τ 1 ) . . . (x n : τ n ) : τ
 
+
+Slet fname   name
+
 Declaraciones
 ---------------
 let x : τ = t 
@@ -36,4 +39,8 @@ Sum Int Int
 
 
 
-
+Preguntas:
+1-Porque se usa el f en vez del print 
+directamente en el ejemplo de sugar de operadores?
+2-Hay que implementar tipos en las Declaraciones
+del core?

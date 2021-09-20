@@ -36,20 +36,21 @@ data BinaryOp = Add | Sub
   deriving Show
 
 -- | tipo de datos de declaraciones, parametrizado por el tipo del cuerpo de la declaración
-{-data Decl a = Decl
+data Decl a = Decl
   { declPos  :: Pos
   , declName :: Name
+  --, declType :: Ty
   , declBody :: a
   }
-  deriving (Show, Functor)-}
+  deriving (Show, Functor)
 
 data SDecl a = SDecl
-  { declPos  :: Pos
-  , declRec  :: Bool
-  , declName :: Name
-  , declArgs :: [(Name,Ty)]
-  , declType :: Ty
-  , declBody :: a
+  { sdeclPos  :: Pos
+  , sdeclRec  :: Bool
+  , sdeclName :: Name
+  , sdeclArgs :: [(Name,Ty)]
+  , sdeclType :: Ty
+  , sdeclBody :: a
   }
   deriving (Show, Functor)
 

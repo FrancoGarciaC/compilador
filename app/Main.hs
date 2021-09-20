@@ -170,13 +170,14 @@ parseIO filename p x = case runP p x filename of
                   Left e  -> throwError (ParseErr e)
                   Right r -> return r
 
-typecheckDecl :: MonadPCF m => Decl NTerm -> m (Decl Term)
+-- 
+typecheckDecl :: MonadPCF m => SDecl Stm -> m (Decl NTerm)
 typecheckDecl (Decl p x t) = do
         let dd = (Decl p x (elab t))
         tcDecl dd
         return dd
 
-handleDecl ::  MonadPCF m => Decl NTerm -> m ()
+handleDecl ::  MonadPCF m => SDecl Stm -> m ()
 handleDecl d = do
         (Decl p x tt) <- typecheckDecl d
         te <- eval tt
@@ -260,12 +261,12 @@ handleCommand cmd = do
 compilePhrase ::  MonadPCF m => String -> m ()
 compilePhrase x =
   do
-    dot <- parseIO "<interactive>" declOrTm x
+    dot <- parseIO "<interactive>" declOrStm x
     case dot of 
       Left d  -> handleDecl d
       Right t -> handleTerm t
 
-handleTerm ::  MonadPCF m => NTerm -> m ()
+handleTerm ::  MonadPCF m => Stm -> m ()
 handleTerm t = do
          let tt = elab t
          s <- get
