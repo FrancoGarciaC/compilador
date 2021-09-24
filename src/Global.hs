@@ -17,6 +17,7 @@ data GlEnv = GlEnv {
   cantDecl :: Int,      -- ^ Cantidad de declaraciones desde la última carga
   glb :: [Decl Term],   -- ^ Entorno con declaraciones globales
   tyEnv :: [(Name,Ty)]  -- ^ Entorno de tipado de declaraciones globales
+  --typeSinonym:: D
 }
 
 -- | Valor del estado inicial

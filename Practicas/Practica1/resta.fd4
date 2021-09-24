@@ -1,0 +1,1 @@
+let rec resta (m:Nat) (n:Nat) = ifz n then m else (resta m (n-1)) -1

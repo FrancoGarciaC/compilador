@@ -32,6 +32,10 @@ type Name = String
 data Const = CNat Int
   deriving Show
 
+data SConst = SCNat Int
+  deriving Show
+
+
 data BinaryOp = Add | Sub
   deriving Show
 
@@ -64,7 +68,7 @@ data SDecl a = SDecl
 
 data Stm info var =     
     Sv info var
-  | SConst info var  
+  | SConst info SConst  
   | SPrint info String (Stm info var)
   | Slam info [(Name,Ty)] (Stm info var)
   | SBinaryOp info BinaryOp (Stm info var) (Stm info var)
@@ -72,7 +76,7 @@ data Stm info var =
   | SLet info Bool Name [(Name,Ty)] Ty (Stm info var)  (Stm info var)
   | SFix info Name Ty [(Name,Ty)] (Stm info var)
   | SIfZ info (Stm info var) (Stm info var) (Stm info var)
-  
+  deriving (Show,Functor)
 
   
 
@@ -93,8 +97,8 @@ data Tm info var =
 
 
 
-
-
+-- Terminos con sintactic sugar
+type STerm = Stm Pos Name
 type NTerm = Tm Pos Name   -- ^ 'Tm' tiene 'Name's como variables ligadas y libres y globales, guarda posición
 type Term = Tm Pos Var     -- ^ 'Tm' con índices de De Bruijn como variables ligadas, y nombres para libres y globales, guarda posición
 
@@ -103,6 +107,9 @@ data Var =
   | Free Name
   | Global Name
   deriving Show
+
+
+
 
 -- | Obtiene la info en la raíz del término.
 getInfo :: Tm info var -> info
@@ -115,6 +122,21 @@ getInfo (Fix i _ _ _ _ _ ) = i
 getInfo (IfZ i _ _ _     ) = i
 getInfo (Let i _ _ _ _   ) = i
 getInfo (BinaryOp i _ _ _) = i
+
+
+
+-- | Obtiene la info en la raíz del término.
+sgetInfo :: Stm info var -> info
+sgetInfo (Sv     i _       ) = i
+sgetInfo (SConst i _       ) = i
+sgetInfo (Slam i _ _     ) = i
+sgetInfo (SApp   i _ _     ) = i
+sgetInfo (SPrint i _ _     ) = i
+sgetInfo (SFix i _ _ _ _ ) = i
+sgetInfo (SIfZ i _ _ _     ) = i
+sgetInfo (SLet i _ _ _ _ _ _) = i
+sgetInfo (SBinaryOp i _ _ _) = i
+
 
 -- | Obtiene los nombres de variables (abiertas o globales) de un término.
 freeVars :: Tm info Var -> [Name]

@@ -1,6 +1,6 @@
 {-|
 Module      : Parse
-Description : Define un parser de términos PCF0 a términos fully named.
+Description : Define un parser de términos FD40 a términos fully named.
 Copyright   : (c) Mauro Jaskelioff, Guido Martínez, 2020.
 License     : GPL-3
 Maintainer  : mauro@fceia.unr.edu.ar
@@ -8,7 +8,7 @@ Stability   : experimental
 
 -}
 
-module Parse (tm, Parse.parse, decl, runP, P, program, declOrTm) where
+module Parse (stm, Parse.parse, sdecl, runP, P, program, declOrStm) where
 
 import Prelude hiding ( const )
 import Lang
@@ -20,6 +20,7 @@ import Text.ParserCombinators.Parsec.Language --( GenLanguageDef(..), emptyDef )
 import qualified Text.Parsec.Expr as Ex
 import Text.Parsec.Expr (Operator, Assoc)
 import Control.Monad.Identity (Identity)
+import Elab (buildType)
 
 type P = Parsec String ()
 
@@ -31,7 +32,7 @@ lexer :: Tok.TokenParser u
 lexer = Tok.makeTokenParser $
         emptyDef {
          commentLine    = "#",
-         reservedNames = ["let", "fun", "fix", "then", "else","in", 
+         reservedNames = ["let", "fun", "fix", "then", "else","in",
                            "ifz", "print","Nat"],
          reservedOpNames = ["->",":","=","+","-"]
         }
@@ -39,7 +40,7 @@ lexer = Tok.makeTokenParser $
 whiteSpace :: P ()
 whiteSpace = Tok.whiteSpace lexer
 
-natural :: P Integer 
+natural :: P Integer
 natural = Tok.natural lexer
 
 stringLiteral :: P String
@@ -65,7 +66,7 @@ num :: P Int
 num = fromInteger <$> natural
 
 var :: P Name
-var = identifier 
+var = identifier
 
 getPos :: P Pos
 getPos = do pos <- getPosition
@@ -76,40 +77,40 @@ tyatom = (reserved "Nat" >> return NatTy)
          <|> parens typeP
 
 typeP :: P Ty
-typeP = try (do 
+typeP = try (do
           x <- tyatom
           reservedOp "->"
           y <- typeP
           return (FunTy x y))
       <|> tyatom
-          
-const :: P SConst
-const = CNat <$> num
 
-printOp :: P Stm
-printOp = do
+const :: P SConst
+const = SCNat <$> num
+
+sprintOp :: P STerm
+sprintOp = do
   i <- getPos
   reserved "print"
   str <- option "" stringLiteral
-  a <- atom
+  a <- satom
   return (SPrint i str a)
 
-binary :: String -> BinaryOp -> Assoc -> Operator String () Identity Stm
-binary s f = Ex.Infix (reservedOp s >> return (BinaryOp NoPos f))
+binary :: String -> BinaryOp -> Assoc -> Operator String () Identity STerm
+binary s f = Ex.Infix (reservedOp s >> return (SBinaryOp NoPos f))
 
-table :: [[Operator String () Identity Stm]]
+table :: [[Operator String () Identity STerm]]
 table = [[binary "+" Add Ex.AssocLeft,
           binary "-" Sub Ex.AssocLeft]]
 
-expr :: P Stm
-expr = Ex.buildExpressionParser table stm 
-       
+sexpr :: P STerm
+sexpr = Ex.buildExpressionParser table stm
 
-atom :: P Stm
-atom =     (flip SConst <$> const <*> getPos)
+
+satom :: P STerm
+satom =     (flip SConst <$> const <*> getPos)
        <|> flip Sv <$> var <*> getPos
-       <|> parens expr
-       <|> printOp
+       <|> parens sexpr
+       <|> sprintOp
 
 -- parsea un par (variable : tipo)
 binding :: P (Name, Ty)
@@ -120,57 +121,56 @@ binding = do v <- var
 
 binder = parens binding
 
-sletexp :: P Stm
+sletexp :: P STerm
 sletexp = do
   i <- getPos
-  reserved "let"  
+  reserved "let"
   name <- var
   ls <- many binder -- Agregamos para que parsee sin parentesis
-  reservedOp ":"  
+  reservedOp ":"
   retty <- typeP
-  reservedOp "="  
-  def <- expr
+  reservedOp "="
+  def <- sexpr
   let rec = case def of
-              (SFix _) -> True
-              _ -> False 
+              (SFix _ _ _ _ _) -> True
+              _ -> False
   reserved "in"
-  body <- expr
-  return (SLet rec ls def body)
+  body <- sexpr
+  return (SLet i rec name ls retty def body)
 
-
-sfix :: P Stm
+sfix :: P STerm
 sfix = do i <- getPos
           reserved "fix"
           (f, fty) <- binder
           ls <- many binder
           reservedOp "->"
-          t <- expr
-          return (Fix i f fty ls t)
+          t <- sexpr
+          return (SFix i f fty ls t)
 
-slam :: P Stm
+slam :: P STerm
 slam = do i <- getPos
           reserved "fun"
           ls <- many binder
           reservedOp "->"
-          t <- expr
-          return (SLam i ls t)
+          t <- sexpr
+          return (Slam i ls t)
 
 
 -- Nota el parser app también parsea un solo atom.
-sapp :: P Stm
+sapp :: P STerm
 sapp = (do i <- getPos
-           f <- atom
-           args <- many atom
+           f <- satom
+           args <- many satom
            return (foldl (SApp i) f args))
 
-sifz :: P Stm
+sifz :: P STerm
 sifz = do i <- getPos
           reserved "ifz"
-          c <- expr
+          c <- sexpr
           reserved "then"
-          t <- expr
+          t <- sexpr
           reserved "else"
-          e <- expr
+          e <- sexpr
           return (SIfZ i c t e)
 
 
@@ -180,35 +180,28 @@ sifz = do i <- getPos
 --tm = app <|> lam <|> ifz <|> printOp <|> fix <|> letexp <|> desugar stm
 
 -- Parser de sintactica sugar
-stm :: P Stm
-stm = app <|> lam <|> ifz <|> printOp <|> fix <|> letexp
+stm :: P STerm
+stm = sapp <|> slam <|> sifz <|> sprintOp <|> sfix <|> sletexp
 
--- | Parser de declaraciones
-{-decl :: P (Decl NTerm)
-decl = do 
+
+sdecl :: P (SDecl STerm)
+sdecl = do
      i <- getPos
      reserved "let"
-     v <- var
-     reservedOp "="
-     t <- expr
-     return (Decl i v t)-}
-
-sdecl :: P (SDecl Stm)
-sdecl = do 
-     i <- getPos
-     reserved "let"
+     b <- parseRec    
      name <- var
      ls <- many binder
-     ty <- typeP
+     reserved ":"     
+     ty <- typeP        
      reservedOp "="
-     t <- expr
-     let rec  = case t of 
-                   (SFix _) -> True
-                   _ -> False
-     return (SDecl i rec name ls ty t)
+
+     SDecl i b name ls ty <$> sexpr
+
+     where parseRec = (reserved "rec" >> return True) <|> return False
+
 
 -- | Parser de programas (listas de declaraciones) 
-program :: P [Decl Stm]
+program :: P [SDecl STerm]
 program = many sdecl
 
 -- | Parsea una declaración a un término
@@ -217,8 +210,8 @@ program = many sdecl
 -- declOrTm =  try (Left <$> decl) <|> (Right <$> expr)
 
 
-declOrStm :: P (Either (Decl Stm) Stm)
-declOrStm =  try (Left <$> decl) <|> (Right <$> expr)
+declOrStm :: P (Either (SDecl STerm) STerm)
+declOrStm =  try (Left <$> sdecl) <|> (Right <$> sexpr)
 
 
 
@@ -228,7 +221,7 @@ runP :: P a -> String -> String -> Either ParseError a
 runP p s filename = runParser (whiteSpace *> p <* eof) () filename s
 
 --para debugging en uso interactivo (ghci)
-parse :: String -> Stm
-parse s = case runP expr s "" of
+parse :: String -> STerm
+parse s = case runP sexpr s "" of
             Right t -> t
             Left e -> error ("no parse: " ++ show s)

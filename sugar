@@ -44,3 +44,32 @@ Preguntas:
 directamente en el ejemplo de sugar de operadores?
 2-Hay que implementar tipos en las Declaraciones
 del core?
+{
+  
+    "N" -> Nat,
+    "M" -> Nat
+
+}
+
+type N = Nat
+type M = N
+type N = Int
+let fun f (x: Nat) (y:N) (z:M) = x + y +z
+
+
+Hola Mauro, teniamos algunas dudas con la implementación de sintactic sugar:
+
+*) con respecto a la definición de sinónimos de tipos:
+Supongamos las siguientes definiciones:
+     type N = Nat
+     type M = N
+Es posible redefinir N con otra declaración?:
+      type N = Nat->Nat
+Si está permitido, que pasaría con M?      
+
+*)Hay que almacenar los tipos en las declaraciones de core?
+
+*)La implementación del pretty printer para el sintactic sugar es necesaria?
+
+
+ 

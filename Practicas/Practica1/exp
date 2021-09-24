@@ -1,0 +1,2 @@
+let exp = fix(exp:Nat->Nat->Nat) (n:Nat) ->
+             fun(m:Nat) -> ifz m then 1 else prod n (exp n (m-1))

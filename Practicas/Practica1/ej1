@@ -1,0 +1,5 @@
+let rec resta (m:Nat) (n:Nat) : Nat = ifz n then m else (resta m (n-1)) -1
+let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else (suma m (n-1))+1
+let ej1 (x:Nat) : Nat = resta 5 x
+let ej2 (f:Nat->Nat) (g:Nat->Nat) : Nat = g (f 3)
+

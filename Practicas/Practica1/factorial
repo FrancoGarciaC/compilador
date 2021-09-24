@@ -1,0 +1,2 @@
+let fact = fix(fact:Nat->Nat) (n:Nat) ->
+               ifz n then 1 else prod n (fact (n-1))
