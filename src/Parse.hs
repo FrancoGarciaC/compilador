@@ -194,7 +194,6 @@ sdecl = do
      reserved ":"     
      ty <- typeP        
      reservedOp "="
-
      SDecl i b name ls ty <$> sexpr
 
      where parseRec = (reserved "rec" >> return True) <|> return False

@@ -1,0 +1,8 @@
+let rec fibo (n:Nat) : Nat = ifz n then 0
+                             else ifz n-1 then 1
+                             else let f1 : Nat = fibo (n-1) in  
+                                  let f2 : Nat = fibo (n-2) in
+                                  print "res=" (f1+f2)
+                           
+                                     
+                     
