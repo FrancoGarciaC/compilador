@@ -28,6 +28,7 @@ module MonadFD4 (
   addDecl,
   addTy,
   catchErrors,
+  getSinTypList,
   MonadFD4,
   module Control.Monad.Except,
   module Control.Monad.State)
@@ -70,7 +71,8 @@ getLastFile = gets lfile
 
 addDecl :: MonadFD4 m => Decl Term -> m ()
 addDecl d = modify (\s -> s { glb = d : glb s, cantDecl = cantDecl s + 1 })
-  
+
+-- implementado por nosotros  
 addTy :: MonadFD4 m => Name -> Ty -> m ()
 addTy n ty = modify (\s -> s { tyEnv = (n,ty) : tyEnv s })
 
@@ -92,10 +94,16 @@ lookupDecl nm = do
        (Decl { declBody=e }):_ -> return (Just e)
        [] -> return Nothing
 
+
+-- implementado por nosotros
 lookupTy :: MonadFD4 m => Name -> m (Maybe Ty)
 lookupTy nm = do
       s <- get
       return $ lookup nm (tyEnv s)
+
+getSinTypList :: MonadFD4 m => m ([(Name,Ty)])
+getSinTypList = do s<- get
+                   return $ tySin s      
 
 failPosFD4 :: MonadFD4 m => Pos -> String -> m a
 failPosFD4 p s = throwError (ErrPos p s)
@@ -107,6 +115,10 @@ catchErrors  :: MonadFD4 m => m a -> m (Maybe a)
 catchErrors c = catchError (Just <$> c) 
                            (\e -> liftIO $ hPutStrLn stderr (show e) 
                               >> return Nothing)
+
+
+
+
 
 ----
 -- Importante, no eta-expandir porque GHC no hace una
@@ -127,3 +139,6 @@ runFD4' c =  runExceptT $ runStateT c initialEnv
 
 runFD4:: FD4 a -> IO (Either Error a)
 runFD4 c = fmap fst <$> runFD4' c
+
+
+

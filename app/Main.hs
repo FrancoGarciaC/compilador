@@ -30,7 +30,7 @@ import Options.Applicative
 import Global ( GlEnv(..) )
 import Errors
 import Lang
-import Parse ( P, stm, program, declOrStm, runP )
+import Parse ( P, stm, program,declOrSintypeOrStm, runP,typeP,sinTypeProgram)
 import Elab ( elab,desugar,desugar')
 import Eval ( eval )
 import PPrint ( pp , ppTy, ppDecl )
@@ -75,6 +75,14 @@ parseMode = (,) <$>
 parseArgs :: Parser (Mode,Bool, [FilePath])
 parseArgs = (\(a,b) c -> (a,b,c)) <$> parseMode <*> many (argument str (metavar "FILES..."))
 
+
+--helper :: Parser (a -> a)
+--(<**>) :: Applicative f => f a -> f (a -> b) -> f b
+--info :: Parser a -> InfoMod a -> ParserInfo a
+--data ParserInfo a: A full description for a runnable Parser for a program.
+
+
+
 main :: IO ()
 main = execParser opts >>= go
   where
@@ -87,7 +95,7 @@ main = execParser opts >>= go
     go (Interactive,_,files) = 
               do runFD4 (runInputT defaultSettings (repl files))
                  return ()
-    go (Typecheck,opt, files) =
+    go (Typecheck,opt, files) = 
               runOrFail $ mapM_ (typecheckFile opt) files
     -- go (InteractiveCEK,_, files) = undefined
     -- go (Bytecompile,_, files) =
@@ -144,8 +152,18 @@ loadFile f = do
                (\e -> do let err = show (e :: IOException)
                          hPutStrLn stderr ("No se pudo abrir el archivo " ++ filename ++ ": " ++ err)
                          return "")
-    setLastFile filename
-    parseIO filename program x
+    setLastFile filename 
+    ts <- parseIO filename sinTypeProgram x   
+    checkSinType ts  
+    env <- getSinTypList
+    ls<-parseIO filename (program env) x        
+    return ls
+
+
+   
+    
+
+
 
 compileFile ::  MonadFD4 m => FilePath -> m ()
 compileFile f = do
@@ -155,7 +173,11 @@ compileFile f = do
                (\e -> do let err = show (e :: IOException)
                          hPutStrLn stderr ("No se pudo abrir el archivo " ++ filename ++ ": " ++ err)
                          return "")
-    decls <- parseIO filename program x
+    -- revisar
+    ts <- parseIO filename sinTypeProgram x
+    checkSinType ts
+    env <- getSinTypList
+    decls <- parseIO filename (program env) x
     mapM_ handleDecl decls
 
 typecheckFile ::  MonadFD4 m => Bool -> FilePath -> m ()
@@ -254,7 +276,8 @@ handleCommand cmd = do
        Help   ->  printFD4 (helpTxt commands) >> return True
        Browse ->  do  printFD4 (unlines [ name | name <- reverse (nub (map declName glb)) ])
                       return True
-       Compile c ->
+       -- frases por consola y compilacion de archivos               
+       Compile c -> 
                   do  case c of
                           CompileInteractive e -> compilePhrase e
                           CompileFile f        -> put (s {lfile=f, cantDecl=0}) >> compileFile f
@@ -264,12 +287,15 @@ handleCommand cmd = do
        Type e    -> typeCheckPhrase e >> return True
 
 compilePhrase ::  MonadFD4 m => String -> m ()
-compilePhrase x =
-  do
-    dot <- parseIO "<interactive>" declOrStm x
-    case dot of 
-      Left d  -> handleDecl d
-      Right t -> handleTerm t
+compilePhrase x = do
+  -- arreglar
+  dot <- parseIO "<interactive>" (declOrSintypeOrStm []) x
+  case dot of 
+    Left dOrSt  -> case dOrSt of 
+                      Left d ->handleDecl d
+                      Right st -> checkSinType [st]
+    Right t -> handleTerm t
+
 
 handleTerm ::  MonadFD4 m => STerm -> m ()
 handleTerm term = do  
@@ -284,7 +310,7 @@ handleTerm term = do
 printPhrase   :: MonadFD4 m => String -> m ()
 printPhrase x =
   do
-    x' <- parseIO "<interactive>" stm x
+    x' <- parseIO "<interactive>" (stm []) x
     let ex = elab (desugar' x')
     t  <- case x' of 
            (Sv p f) -> maybe ex id <$> lookupDecl f
@@ -296,8 +322,41 @@ printPhrase x =
 
 typeCheckPhrase :: MonadFD4 m => String -> m ()
 typeCheckPhrase x = do
-         t <- parseIO "<interactive>" stm x
+         t <- parseIO "<interactive>" (stm []) x
          let tt = elab (desugar' t)
          s <- get
          ty <- tc tt (tyEnv s)
          printFD4 (ppTy ty)
+
+
+
+
+
+--checkea si el string del tipo hace referencia a un tipo nativo de fd4 o si es un sinonimo de tipo
+checkSinType :: MonadFD4 m => [(Name, [Char])] -> m ()
+checkSinType [] = return ()
+checkSinType ((n,t):ts) = do  res <- lookupSinType n
+                              case res of
+                                 Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
+                                 Nothing -> case convert t of 
+                                             Nothing -> do  res2 <-lookupSinType t
+                                                            case res2  of 
+                                                               Nothing -> failFD4 $ "El tipo "++show t++ "no esta definido"
+                                                               Just t' -> do  addSinType n t'
+                                                                              checkSinType ts
+                                             Just t' -> do  addSinType n t'
+                                                            checkSinType ts
+                                                                                                                                                                                                                           
+--intenta convertir un string en un tipo nativo de fd4
+convert :: String  -> Maybe Ty
+convert s = case runP typeP s "" of
+               Right t -> Just t
+               Left e -> Nothing      
+
+
+lookupSinType :: MonadFD4 m => Name -> m (Maybe Ty)
+lookupSinType nm = do s <- get
+                      return $ lookup nm (tySin s)
+
+addSinType :: MonadFD4 m => Name -> Ty -> m ()
+addSinType n t = modify (\s -> s { tySin = (n,t) : tySin s })

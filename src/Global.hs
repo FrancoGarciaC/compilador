@@ -16,10 +16,10 @@ data GlEnv = GlEnv {
   lfile :: String,      -- ^ Último archivo cargado.
   cantDecl :: Int,      -- ^ Cantidad de declaraciones desde la última carga
   glb :: [Decl Term],   -- ^ Entorno con declaraciones globales
-  tyEnv :: [(Name,Ty)]  -- ^ Entorno de tipado de declaraciones globales
-  --typeSinonym:: D
+  tyEnv :: [(Name,Ty)],  -- ^ Entorno de tipado de declaraciones globales
+  tySin::[(Name,Ty)]    -- ^ Entorno de sinonimos de tipo
 }
 
 -- | Valor del estado inicial
 initialEnv :: GlEnv
-initialEnv = GlEnv True "" 0 [] []
+initialEnv = GlEnv True "" 0 [] [] []
