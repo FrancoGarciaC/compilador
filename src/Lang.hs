@@ -25,6 +25,7 @@ import           Data.List.Extra                ( nubSort )
 data Ty =
       NatTy
     | FunTy Ty Ty
+    | SinTy Name
     deriving (Show,Eq)
 
 type Name = String
@@ -56,8 +57,9 @@ data SDecl a = SDecl
   , sdeclType :: Ty
   , sdeclBody :: a
   }
+  | SType { sinTypeName::Name
+          , sinTypeVal::Name}
   deriving (Show, Functor)
-
 
 
 -- | AST de los términos. 

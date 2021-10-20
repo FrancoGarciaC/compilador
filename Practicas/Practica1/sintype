@@ -1,5 +1,3 @@
-type m = Nat
-let x:m = 5
-
-x:: String
-
+type N = Nat
+let prueba (f:M) : N = f 3 4
+let suma (x:N) (y:N) : N = x+y

@@ -8,7 +8,7 @@ Stability   : experimental
 
 -}
 
-module Parse (stm, Parse.parse, sdecl, runP, P, program, declOrSintypeOrStm,typeP,sinTypeProgram) where
+module Parse (stm, Parse.parse, sdecl, runP, P, program, declOrStm,typeP) where
 
 import Prelude hiding ( const )
 import Lang
@@ -115,7 +115,7 @@ typeP = try (do x <- tyatom
                 reservedOp "->"
                 y <- typeP
                 return (FunTy x y))
-      <|> tyatom
+        <|> tyatom
 
 const :: P SConst
 const = SCNat <$> num
@@ -159,11 +159,9 @@ binder e = parens $ binding e
 
 
 parseTy :: [(Name,Ty)] -> P Ty
-parseTy e = do tyVar <- varST
-               case lookup tyVar e of
-                     Nothing -> error "No existe"
-                     Just t -> return t
-                <|> typeP
+parseTy e = do tyVar <- varST               
+               return $ SinTy tyVar
+               <|> typeP
 
 sletexp :: [(Name,Ty)] -> P STerm
 sletexp e = do
@@ -215,6 +213,8 @@ sifz e= do i <- getPos
            return (SIfZ i c t e)
 
 
+declOrStm ::  P (Either (SDecl STerm) STerm)
+declOrStm =  try (Left <$> sdecl []) <|> (Right <$> sexpr [])
 
 -- | Parser de términos
 --tm :: P NTerm
@@ -228,51 +228,46 @@ stm e = sapp e <|> slam e <|> sifz e <|> sprintOp e <|> sfix e <|> sletexp e
 sdecl :: [(Name,Ty)] -> P (SDecl STerm)
 sdecl e = do
      i <- getPos
-     reserved "let"
-     b <- parseRec
+     reserved "let"          
+     b <- parseRec     
      name <- var
      ls <- many (binder e)
-     reserved ":"
-     ty <- parseTy e
+     reserved ":"               
+     ty <-  parseTy e
      reservedOp "="
      SDecl i b name ls ty <$> sexpr e
-     where parseRec = (reserved "rec" >> return True) <|> return False
+     where parseRec = (reserved "rec" >> return True) <|> return False           
 
 
 
-sinTypeProgram:: P [(Name,Name)]
-sinTypeProgram = many sintype
-
-sintype:: P (Name,Name)
-sintype = do
+sintype::[(Name,Ty)]-> P (SDecl a)
+sintype e = do
      reserved "type"
      name <- var
      reservedOp "="
-     typeName <- varST -- varST permite parsear nombres que representan tipos
-     return (name,typeName)
+     value <- varST -- varST permite parsear nombres que representan tipos
+     return $ SType name value
 
 
 
 -- | Parser de programas (listas de declaraciones y sinonimos de tipos) 
-program :: [(Name,Ty)]-> P [SDecl STerm]
-program e = many $ sdecl e
--- program e = do eiths <- many $ sdeclOrSintype e
---                return $ partitionEithers eiths -- separa en 2 listas de acuerdo a si son lefts o rights
+program :: P ([SDecl STerm])
+--program e = many $ sdecl e
+program = many $ sdeclOrSintype []
+             -- separa en 2 listas de acuerdo a si son lefts o rights
 
 
-sdeclOrSintype :: [(Name,Ty)]->ParsecT String () Identity (Either (SDecl STerm) (Name, Name))
-sdeclOrSintype e = try (Left <$> sdecl e) <|> (Right <$> sintype)
-
+--sdeclOrSintype :: [(Name,Ty)]->ParsecT String () Identity (Either (SDecl STerm) (Name, Ty))
+--sdeclOrSintype e = try (Left <$> sdecl e) <|> (Right <$> sintype e)
+sdeclOrSintype :: [(Name,Ty)]->ParsecT String () Identity (SDecl STerm)
+sdeclOrSintype e = try (sdecl e <|> sintype e)
 
 
 -- | Parsea una declaración a un término
--- Útil para las sesiones interactivas
+--Útil para las sesiones interactivas
 -- declOrTm :: P (Either (Decl NTerm) NTerm)
 -- declOrTm =  try (Left <$> decl) <|> (Right <$> expr)
 
-
-declOrSintypeOrStm :: [(Name,Ty)]-> P (Either (Either (SDecl STerm) (Name,Name))  STerm)
-declOrSintypeOrStm e =  try (Left <$> sdeclOrSintype e) <|> (Right <$> sexpr e)
 
 
 

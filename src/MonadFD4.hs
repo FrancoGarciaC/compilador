@@ -18,6 +18,7 @@ module MonadFD4 (
   FD4,
   runFD4,
   lookupDecl,
+  lookupSinTy,
   lookupTy,
   printFD4,
   setLastFile,
@@ -28,7 +29,7 @@ module MonadFD4 (
   addDecl,
   addTy,
   catchErrors,
-  getSinTypList,
+  getSinTypEnv,
   MonadFD4,
   module Control.Monad.Except,
   module Control.Monad.State)
@@ -96,14 +97,22 @@ lookupDecl nm = do
 
 
 -- implementado por nosotros
+lookupSinTy :: MonadFD4 m => Name -> m (Maybe Ty)
+lookupSinTy nm = do
+      s <- get
+      return $ lookup nm (tySin s)
+
+
+-- implementado por nosotros
 lookupTy :: MonadFD4 m => Name -> m (Maybe Ty)
 lookupTy nm = do
       s <- get
       return $ lookup nm (tyEnv s)
 
-getSinTypList :: MonadFD4 m => m ([(Name,Ty)])
-getSinTypList = do s<- get
-                   return $ tySin s      
+
+getSinTypEnv :: MonadFD4 m => m ([(Name,Ty)])
+getSinTypEnv = do s<- get
+                  return $ tySin s      
 
 failPosFD4 :: MonadFD4 m => Pos -> String -> m a
 failPosFD4 p s = throwError (ErrPos p s)

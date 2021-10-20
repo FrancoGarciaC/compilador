@@ -30,12 +30,14 @@ import Options.Applicative
 import Global ( GlEnv(..) )
 import Errors
 import Lang
-import Parse ( P, stm, program,declOrSintypeOrStm, runP,typeP,sinTypeProgram)
+import Parse ( P, stm, program, runP,typeP,declOrStm)
 import Elab ( elab,desugar,desugar')
 import Eval ( eval )
 import PPrint ( pp , ppTy, ppDecl )
 import MonadFD4
 import TypeChecker ( tc, tcDecl )
+import Lang (SDecl(sinTypeVal))
+import MonadFD4 (getSinTypEnv)
 
 prompt :: String
 prompt = "FD4> "
@@ -56,7 +58,7 @@ data Mode =
 
 -- | Parser de banderas
 parseMode :: Parser (Mode,Bool)
-parseMode = (,) <$> 
+parseMode = (,) <$>
       (flag' Typecheck ( long "typecheck" <> short 't' <> help "Chequear tipos e imprimir el término")
   -- <|> flag' InteractiveCEK (long "interactiveCEK" <> short 'k' <> help "Ejecutar interactivamente en la CEK")
   -- <|> flag' Bytecompile (long "bytecompile" <> short 'm' <> help "Compilar a la BVM")
@@ -70,7 +72,7 @@ parseMode = (,) <$>
    <*> pure False
    -- reemplazar por la siguiente línea para habilitar opción
    -- <*> flag False True (long "optimize" <> short 'o' <> help "Optimizar código")
-  
+
 -- | Parser de opciones general, consiste de un modo y una lista de archivos a procesar
 parseArgs :: Parser (Mode,Bool, [FilePath])
 parseArgs = (\(a,b) c -> (a,b,c)) <$> parseMode <*> many (argument str (metavar "FILES..."))
@@ -92,10 +94,10 @@ main = execParser opts >>= go
      <> header "Compilador de FD4 de la materia Compiladores 2021" )
 
     go :: (Mode,Bool,[FilePath]) -> IO ()
-    go (Interactive,_,files) = 
+    go (Interactive,_,files) =
               do runFD4 (runInputT defaultSettings (repl files))
                  return ()
-    go (Typecheck,opt, files) = 
+    go (Typecheck,opt, files) =
               runOrFail $ mapM_ (typecheckFile opt) files
     -- go (InteractiveCEK,_, files) = undefined
     -- go (Bytecompile,_, files) =
@@ -152,16 +154,13 @@ loadFile f = do
                (\e -> do let err = show (e :: IOException)
                          hPutStrLn stderr ("No se pudo abrir el archivo " ++ filename ++ ": " ++ err)
                          return "")
-    setLastFile filename 
-    ts <- parseIO filename sinTypeProgram x   
-    checkSinType ts  
-    env <- getSinTypList
-    ls<-parseIO filename (program env) x        
+    setLastFile filename
+    ls<-parseIO filename program x
     return ls
 
 
-   
-    
+
+
 
 
 
@@ -173,11 +172,9 @@ compileFile f = do
                (\e -> do let err = show (e :: IOException)
                          hPutStrLn stderr ("No se pudo abrir el archivo " ++ filename ++ ": " ++ err)
                          return "")
-    -- revisar
-    ts <- parseIO filename sinTypeProgram x
-    checkSinType ts
-    env <- getSinTypList
-    decls <- parseIO filename (program env) x
+    -- revisar    
+    --checkSinType ts  
+    decls <- parseIO filename program x
     mapM_ handleDecl decls
 
 typecheckFile ::  MonadFD4 m => Bool -> FilePath -> m ()
@@ -197,7 +194,8 @@ parseIO filename p x = case runP p x filename of
 
 typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Decl Term)
 typecheckDecl decl = do
-        let  (Decl _ _ t) = desugar decl
+        e <- getSinTypEnv
+        let  (Decl _ _ t) = desugar e decl
              p = sdeclPos decl
              x = sdeclName decl
              dd = (Decl p x (elab t))
@@ -205,10 +203,22 @@ typecheckDecl decl = do
         return dd
 
 handleDecl ::  MonadFD4 m => SDecl STerm -> m ()
-handleDecl d = do
+handleDecl d@SDecl {} = do
         (Decl p x tt) <- typecheckDecl d
         te <- eval tt
         addDecl (Decl p x te)
+handleDecl d@SType {} = do
+      let n=sinTypeName d
+          v=sinTypeVal d
+      res <- lookupSinTy n
+      case res of
+          Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
+          Nothing -> case convert v of
+                      Nothing -> do res2 <-lookupSinTy v
+                                    case res2  of
+                                        Nothing -> failFD4 $ "El tipo "++v++ "no esta definido"
+                                        Just t' -> addSinType n t'
+                      Just t' -> addSinType n t'
 
 data Command = Compile CompileForm
              | PPrint String
@@ -277,7 +287,7 @@ handleCommand cmd = do
        Browse ->  do  printFD4 (unlines [ name | name <- reverse (nub (map declName glb)) ])
                       return True
        -- frases por consola y compilacion de archivos               
-       Compile c -> 
+       Compile c ->
                   do  case c of
                           CompileInteractive e -> compilePhrase e
                           CompileFile f        -> put (s {lfile=f, cantDecl=0}) >> compileFile f
@@ -287,19 +297,16 @@ handleCommand cmd = do
        Type e    -> typeCheckPhrase e >> return True
 
 compilePhrase ::  MonadFD4 m => String -> m ()
-compilePhrase x = do
-  -- arreglar
-  dot <- parseIO "<interactive>" (declOrSintypeOrStm []) x
-  case dot of 
-    Left dOrSt  -> case dOrSt of 
-                      Left d ->handleDecl d
-                      Right st -> checkSinType [st]
-    Right t -> handleTerm t
-
+compilePhrase x =   do
+    dot <- parseIO "<interactive>" declOrStm x
+    case dot of 
+      Left d  -> handleDecl d
+      Right t -> handleTerm t
 
 handleTerm ::  MonadFD4 m => STerm -> m ()
-handleTerm term = do  
-         let t = desugar' term
+handleTerm term = do
+         e <-getSinTypEnv  
+         let t = desugar' e term
          let tt = elab t
          s <- get
          ty <- tc tt (tyEnv s)
@@ -311,10 +318,11 @@ printPhrase   :: MonadFD4 m => String -> m ()
 printPhrase x =
   do
     x' <- parseIO "<interactive>" (stm []) x
-    let ex = elab (desugar' x')
-    t  <- case x' of 
+    e <- getSinTypEnv
+    let ex = elab (desugar' e x')
+    t  <- case x' of
            (Sv p f) -> maybe ex id <$> lookupDecl f
-           _       -> return ex  
+           _       -> return ex
     printFD4 "NTerm:"
     printFD4 (show x')
     printFD4 "\nTerm:"
@@ -323,7 +331,8 @@ printPhrase x =
 typeCheckPhrase :: MonadFD4 m => String -> m ()
 typeCheckPhrase x = do
          t <- parseIO "<interactive>" (stm []) x
-         let tt = elab (desugar' t)
+         e <- getSinTypEnv
+         let tt = elab (desugar' e t)
          s <- get
          ty <- tc tt (tyEnv s)
          printFD4 (ppTy ty)
@@ -335,28 +344,28 @@ typeCheckPhrase x = do
 --checkea si el string del tipo hace referencia a un tipo nativo de fd4 o si es un sinonimo de tipo
 checkSinType :: MonadFD4 m => [(Name, [Char])] -> m ()
 checkSinType [] = return ()
-checkSinType ((n,t):ts) = do  res <- lookupSinType n
+checkSinType ((n,t):ts) = do  res <- lookupSinTy n
                               case res of
                                  Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
-                                 Nothing -> case convert t of 
-                                             Nothing -> do  res2 <-lookupSinType t
-                                                            case res2  of 
+                                 Nothing -> case convert t of
+                                             Nothing -> do  res2 <-lookupSinTy t
+                                                            case res2  of
                                                                Nothing -> failFD4 $ "El tipo "++show t++ "no esta definido"
                                                                Just t' -> do  addSinType n t'
                                                                               checkSinType ts
                                              Just t' -> do  addSinType n t'
                                                             checkSinType ts
-                                                                                                                                                                                                                           
+
 --intenta convertir un string en un tipo nativo de fd4
 convert :: String  -> Maybe Ty
 convert s = case runP typeP s "" of
                Right t -> Just t
-               Left e -> Nothing      
+               Left e -> Nothing
 
 
-lookupSinType :: MonadFD4 m => Name -> m (Maybe Ty)
-lookupSinType nm = do s <- get
-                      return $ lookup nm (tySin s)
+-- lookupSinType :: MonadFD4 m => Name -> m (Maybe Ty)
+-- lookupSinType nm = do s <- get
+--                       return $ lookup nm (tySin s)
 
 addSinType :: MonadFD4 m => Name -> Ty -> m ()
 addSinType n t = modify (\s -> s { tySin = (n,t) : tySin s })
