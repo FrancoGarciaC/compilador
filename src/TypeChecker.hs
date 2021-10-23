@@ -65,7 +65,7 @@ tc (Let p v ty def t) bs = do
          expect ty ty' def
          tc (open v t) ((v,ty):bs)
 tc (BinaryOp p op t u) bs = do
-         tty <- tc t bs
+         tty <- tc t bs         
          expect NatTy tty t
          uty <- tc t bs
          expect NatTy uty u
@@ -101,10 +101,12 @@ tcDecl :: MonadFD4 m  => Decl Term -> m ()
 tcDecl (Decl p n t) = do
     --chequear si el nombre ya está declarado
     mty <- lookupTy n
+    s <- get
     case mty of
-        Nothing -> do  --no está declarado 
-                  s <- get
-                  --error $ show t
-                  ty <- tc t (tyEnv s)                 
-                  addTy n ty
-        Just _  -> failPosFD4 p $ n ++" ya está declarado"
+         Nothing -> do  --no está declarado 
+                     s <- get
+                     ty <- tc t (tyEnv s)                 
+                     addTy n ty
+         Just _  -> failPosFD4 p $ n ++" ya está declarado"
+
+    

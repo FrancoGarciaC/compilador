@@ -30,6 +30,8 @@ module MonadFD4 (
   addTy,
   catchErrors,
   getSinTypEnv,
+  checkSinType,
+  addSinType,
   MonadFD4,
   module Control.Monad.Except,
   module Control.Monad.State)
@@ -43,6 +45,7 @@ import Control.Monad.State
 import Control.Monad.Except
 import System.IO
 import Data.List (deleteFirstsBy)
+import Data.Maybe
 
 -- * La clase 'MonadFD4m'
 
@@ -78,7 +81,7 @@ addTy :: MonadFD4 m => Name -> Ty -> m ()
 addTy n ty = modify (\s -> s { tyEnv = (n,ty) : tyEnv s })
 
 eraseLastFileDecls :: MonadFD4 m => m ()
-eraseLastFileDecls = do 
+eraseLastFileDecls = do
       s <- get
       let n = cantDecl s
           (era,rem) = splitAt n (glb s)
@@ -103,7 +106,6 @@ lookupSinTy nm = do
       return $ lookup nm (tySin s)
 
 
--- implementado por nosotros
 lookupTy :: MonadFD4 m => Name -> m (Maybe Ty)
 lookupTy nm = do
       s <- get
@@ -112,7 +114,7 @@ lookupTy nm = do
 
 getSinTypEnv :: MonadFD4 m => m ([(Name,Ty)])
 getSinTypEnv = do s<- get
-                  return $ tySin s      
+                  return $ tySin s
 
 failPosFD4 :: MonadFD4 m => Pos -> String -> m a
 failPosFD4 p s = throwError (ErrPos p s)
@@ -121,8 +123,8 @@ failFD4 :: MonadFD4 m => String -> m a
 failFD4 = failPosFD4 NoPos
 
 catchErrors  :: MonadFD4 m => m a -> m (Maybe a)
-catchErrors c = catchError (Just <$> c) 
-                           (\e -> liftIO $ hPutStrLn stderr (show e) 
+catchErrors c = catchError (Just <$> c)
+                           (\e -> liftIO $ hPutStrLn stderr (show e)
                               >> return Nothing)
 
 
@@ -150,4 +152,19 @@ runFD4:: FD4 a -> IO (Either Error a)
 runFD4 c = fmap fst <$> runFD4' c
 
 
+-- Agrege un sinonimo de tipo al entorno
+addSinType :: MonadFD4 m => Name -> Ty -> m ()
+addSinType n t = modify (\s -> s { tySin = (n,t) : tySin s })
 
+
+--Chequea si un tipo t esta bien definido y lo convierte si usa sinonimos
+checkSinType::MonadFD4 m=>Ty-> m Ty
+checkSinType NatTy = return NatTy 
+checkSinType (SinTy n) = do e<-getSinTypEnv
+                            let val = lookup n e
+                            case val of 
+                               Nothing -> failFD4 $ "El tipo "++n++" no esta definido"                                             
+                               Just t -> return t
+checkSinType (FunTy t ty) = do t'<-checkSinType t
+                               ty'<-checkSinType ty
+                               return (FunTy t' ty')

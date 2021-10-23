@@ -1,3 +1,5 @@
-type N = Nat
-let prueba (f:M) : N = f 3 4
-let suma (x:N) (y:N) : N = x+y
+type m = Nat
+type s = Nat->Nat
+type n = Nat-> m -> s
+let misuma (a:Nat) (b:Nat) (c:Nat) : m = a+b+c
+let prueba (f:n): m = f 1 2 3

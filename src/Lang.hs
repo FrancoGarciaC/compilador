@@ -58,7 +58,7 @@ data SDecl a = SDecl
   , sdeclBody :: a
   }
   | SType { sinTypeName::Name
-          , sinTypeVal::Name}
+          , sinTypeVal::Ty}
   deriving (Show, Functor)
 
 

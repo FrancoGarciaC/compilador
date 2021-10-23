@@ -1,0 +1,2 @@
+type n = Nat
+let miprueba ( a : n->n ) : n = a 5 

@@ -78,6 +78,8 @@ ty2doc :: Ty -> Doc AnsiStyle
 ty2doc NatTy     = typeColor (pretty "Nat")
 ty2doc (FunTy x@(FunTy _ _) y) = sep [parens (ty2doc x), typeOpColor (pretty "->"),ty2doc y]
 ty2doc (FunTy x y) = sep [ty2doc x, typeOpColor (pretty "->"),ty2doc y] 
+--agregamos
+ty2doc (SinTy s)=typeColor (pretty s)
 
 -- | Pretty printer para tipos (String)
 ppTy :: Ty -> String

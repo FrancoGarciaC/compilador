@@ -107,14 +107,14 @@ getPos = do pos <- getPosition
             return $ Pos (sourceLine pos) (sourceColumn pos)
 
 tyatom :: P Ty
-tyatom = (reserved "Nat" >> return NatTy)
+tyatom = do reserved "Nat" >> return NatTy
+         <|> (varST >>= \n->return $ SinTy n)
          <|> parens typeP
 
 typeP :: P Ty
-typeP = try (do x <- tyatom
+typeP = try (do x <- tyatom                
                 reservedOp "->"
-                y <- typeP
-                return (FunTy x y))
+                FunTy x <$> typeP)
         <|> tyatom
 
 const :: P SConst
@@ -149,7 +149,7 @@ satom e = (flip SConst <$> const <*> getPos)
 binding :: [(Name,Ty)]-> P (Name, Ty)
 binding e = do v <- var
                reservedOp ":"
-               ty <- parseTy e
+               ty <- typeP
                return (v, ty)
 
 
@@ -158,10 +158,6 @@ binder :: [(Name, Ty)] -> P (Name, Ty)
 binder e = parens $ binding e
 
 
-parseTy :: [(Name,Ty)] -> P Ty
-parseTy e = do tyVar <- varST               
-               return $ SinTy tyVar
-               <|> typeP
 
 sletexp :: [(Name,Ty)] -> P STerm
 sletexp e = do
@@ -170,7 +166,7 @@ sletexp e = do
   name <- var
   ls <- many (binder e) -- Agregamos para que parsee sin parentesis
   reservedOp ":"
-  retty <- parseTy e
+  retty <- typeP
   reservedOp "="
   def <- sexpr e
   let rec = case def of
@@ -214,11 +210,8 @@ sifz e= do i <- getPos
 
 
 declOrStm ::  P (Either (SDecl STerm) STerm)
-declOrStm =  try (Left <$> sdecl []) <|> (Right <$> sexpr [])
+declOrStm =  try (Left <$> sdeclOrSintype []) <|> (Right <$> sexpr [])
 
--- | Parser de términos
---tm :: P NTerm
---tm = app <|> lam <|> ifz <|> printOp <|> fix <|> letexp <|> desugar stm
 
 -- Parser de sintactica sugar
 stm :: [(Name,Ty)] -> P STerm
@@ -228,15 +221,15 @@ stm e = sapp e <|> slam e <|> sifz e <|> sprintOp e <|> sfix e <|> sletexp e
 sdecl :: [(Name,Ty)] -> P (SDecl STerm)
 sdecl e = do
      i <- getPos
-     reserved "let"          
-     b <- parseRec     
+     reserved "let"
+     b <- parseRec
      name <- var
      ls <- many (binder e)
-     reserved ":"               
-     ty <-  parseTy e
+     reserved ":"
+     ty <-  typeP
      reservedOp "="
      SDecl i b name ls ty <$> sexpr e
-     where parseRec = (reserved "rec" >> return True) <|> return False           
+     where parseRec = (reserved "rec" >> return True) <|> return False
 
 
 
@@ -245,7 +238,7 @@ sintype e = do
      reserved "type"
      name <- var
      reservedOp "="
-     value <- varST -- varST permite parsear nombres que representan tipos
+     value <- typeP -- varST permite parsear nombres que representan tipos
      return $ SType name value
 
 
