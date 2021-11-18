@@ -42,7 +42,7 @@ tc (IfZ p c t t') bs = do
        tyt  <- tc t bs
        tyt' <- tc t' bs
        expect tyt tyt' t'
-tc (Lam p v ty t) bs = do
+tc (Lam p v ty t) bs = do         
          ty' <- tc (open v t) ((v,ty):bs)
          return (FunTy ty ty')
 tc (App p t u) bs = do
@@ -75,7 +75,7 @@ typeError :: MonadFD4 m => Term   -- ^ término que se está chequeando
                         -> String -- ^ mensaje de error
                         -> m a
 typeError t s = do 
-   ppt <- pp t
+   ppt <- pp t   
    failPosFD4 (getInfo t) $ "Error de tipo en "++ppt++"\n"++s
  
 -- | 'expect' chequea que el tipo esperado sea igual al que se obtuvo
@@ -105,6 +105,7 @@ tcDecl (Decl p n t) = do
     case mty of
          Nothing -> do  --no está declarado 
                      s <- get
+                     error $ (show t) ++"\n"++(show $ tyEnv s)
                      ty <- tc t (tyEnv s)                 
                      addTy n ty
          Just _  -> failPosFD4 p $ n ++" ya está declarado"

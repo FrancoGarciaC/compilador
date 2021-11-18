@@ -53,7 +53,7 @@ data SDecl a = SDecl
   { sdeclPos  :: Pos
   , sdeclRec  :: Bool
   , sdeclName :: Name
-  , sdeclArgs :: [(Name,Ty)]
+  , sdeclArgs :: [(Name,Ty)]  
   , sdeclType :: Ty
   , sdeclBody :: a
   }
@@ -79,7 +79,7 @@ data Stm info var =
   | SFix info Name Ty [(Name,Ty)] (Stm info var)
   | SIfZ info (Stm info var) (Stm info var) (Stm info var)
   deriving (Show,Functor)
-
+--let prueba () : = let f () = 
   
 
 
@@ -99,8 +99,8 @@ data Tm info var =
 
 
 
--- Terminos con sintactic sugar
-type STerm = Stm Pos Name
+
+type STerm = Stm Pos Name  -- Terminos con sintactic sugar
 type NTerm = Tm Pos Name   -- ^ 'Tm' tiene 'Name's como variables ligadas y libres y globales, guarda posición
 type Term = Tm Pos Var     -- ^ 'Tm' con índices de De Bruijn como variables ligadas, y nombres para libres y globales, guarda posición
 

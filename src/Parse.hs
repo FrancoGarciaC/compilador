@@ -34,6 +34,8 @@ import Text.Parsec.Expr (Operator, Assoc)
 import Control.Monad.Identity (Identity)
 import Elab (buildType)
 import Data.Either
+import Data.Text.Internal.Fusion.Common (concat)
+import qualified Data.Foldable
 
 type P = Parsec String ()
 
@@ -112,7 +114,7 @@ tyatom = do reserved "Nat" >> return NatTy
          <|> parens typeP
 
 typeP :: P Ty
-typeP = try (do x <- tyatom                
+typeP = try (do x <- tyatom
                 reservedOp "->"
                 FunTy x <$> typeP)
         <|> tyatom
@@ -120,12 +122,12 @@ typeP = try (do x <- tyatom
 const :: P SConst
 const = SCNat <$> num
 
-sprintOp :: [(Name,Ty)] -> P STerm
-sprintOp e = do i <- getPos
-                reserved "print"
-                str <- option "" stringLiteral
-                a <- satom e
-                return (SPrint i str a)
+sprintOp :: P STerm
+sprintOp = do i <- getPos
+              reserved "print"
+              str <- option "" stringLiteral
+              a <- satom
+              return (SPrint i str a)
 
 binary :: String -> BinaryOp -> Assoc -> Operator String () Identity STerm
 binary s f = Ex.Infix (reservedOp s >> return (SBinaryOp NoPos f))
@@ -134,132 +136,130 @@ table :: [[Operator String () Identity STerm]]
 table = [[binary "+" Add Ex.AssocLeft,
           binary "-" Sub Ex.AssocLeft]]
 
-sexpr :: [(Name,Ty)]-> P STerm
-sexpr e = Ex.buildExpressionParser table (stm e)
+sexpr :: P STerm
+sexpr = Ex.buildExpressionParser table stm
 
 
-satom :: [(Name,Ty)]->P STerm
-satom e = (flip SConst <$> const <*> getPos)
+satom :: P STerm
+satom = (flip SConst <$> const <*> getPos)
        <|> flip Sv <$> var <*> getPos
-       <|> parens (sexpr e)
-       <|> sprintOp e
+       <|> parens sexpr
+       <|> sprintOp
 
 -- parsea un par (variable : tipo)
 
-binding :: [(Name,Ty)]-> P (Name, Ty)
-binding e = do v <- var
-               reservedOp ":"
-               ty <- typeP
-               return (v, ty)
+binding :: P [(Name, Ty)]
+binding = do v <- many var
+             reservedOp ":"
+             ty <- typeP
+             return [(n,ty)| n <- v]
+             
 
 
 
-binder :: [(Name, Ty)] -> P (Name, Ty)
-binder e = parens $ binding e
+binder ::P [(Name, Ty)]
+binder = parens binding
 
 
 
-sletexp :: [(Name,Ty)] -> P STerm
-sletexp e = do
+sletexp :: P STerm
+sletexp = do
   i <- getPos
   reserved "let"
   name <- var
-  ls <- many (binder e) -- Agregamos para que parsee sin parentesis
+  ls <- many binder -- Agregamos para que parsee sin parentesis
+  let ls' = Data.Foldable.concat ls 
   reservedOp ":"
   retty <- typeP
   reservedOp "="
-  def <- sexpr e
+  def <- sexpr
   let rec = case def of
               SFix {} -> True
               _ -> False
   reserved "in"
-  SLet i rec name ls retty def <$> sexpr e
+  SLet i rec name ls' retty def <$> sexpr
 
-sfix :: [(Name,Ty)] -> P STerm
-sfix e = do i <- getPos
+sfix :: P STerm
+sfix   = do i <- getPos
             reserved "fix"
-            (f, fty) <- binder e
-            ls <- many $ binder e
+            [(f, fty)] <- binder
+            ls <- many binder
+            let ls' = Data.Foldable.concat ls 
             reservedOp "->"
-            SFix i f fty ls <$> sexpr e
+            SFix i f fty ls' <$> sexpr
 
-slam :: [(Name,Ty)] -> P STerm
-slam e = do i <- getPos
-            reserved "fun"
-            ls <- many $ binder e
-            reservedOp "->"
-            Slam i ls <$> sexpr e
+slam :: P STerm
+slam = do i <- getPos
+          reserved "fun"
+          ls <- many binder
+          let ls' = Data.Foldable.concat ls 
+          reservedOp "->"
+          Slam i ls' <$> sexpr
 
 
 -- Nota el parser app también parsea un solo atom.
-sapp :: [(Name,Ty)]-> P STerm
-sapp e = do i <- getPos
-            f <- satom e
-            args <- many (satom e)
-            return (foldl (SApp i) f args)
+sapp :: P STerm
+sapp = do i <- getPos
+          f <- satom
+          args <- many satom
+          return (foldl (SApp i) f args)
 
-sifz :: [(Name,Ty)]->P STerm
-sifz e= do i <- getPos
+sifz :: P STerm
+sifz  = do i <- getPos
            reserved "ifz"
-           c <- sexpr e
+           c <- sexpr
            reserved "then"
-           t <- sexpr e
+           t <- sexpr
            reserved "else"
-           e <- sexpr e
-           return (SIfZ i c t e)
+           SIfZ i c t <$> sexpr
 
 
 declOrStm ::  P (Either (SDecl STerm) STerm)
-declOrStm =  try (Left <$> sdeclOrSintype []) <|> (Right <$> sexpr [])
+declOrStm =  try (Left <$> sdeclOrSintype) <|> (Right <$> sexpr)
 
 
 -- Parser de sintactica sugar
-stm :: [(Name,Ty)] -> P STerm
-stm e = sapp e <|> slam e <|> sifz e <|> sprintOp e <|> sfix e <|> sletexp e
+stm :: P STerm
+stm = sapp  <|> slam  <|> sifz <|> sprintOp <|> sfix  <|> sletexp
 
 
-sdecl :: [(Name,Ty)] -> P (SDecl STerm)
-sdecl e = do
+sdecl :: P (SDecl STerm)
+sdecl = do
      i <- getPos
      reserved "let"
      b <- parseRec
      name <- var
-     ls <- many (binder e)
+     ls <- many binder
+     let ls' = Data.Foldable.concat ls 
      reserved ":"
      ty <-  typeP
      reservedOp "="
-     SDecl i b name ls ty <$> sexpr e
+     SDecl i b name ls' ty <$> sexpr
      where parseRec = (reserved "rec" >> return True) <|> return False
 
 
 
-sintype::[(Name,Ty)]-> P (SDecl a)
-sintype e = do
-     reserved "type"
-     name <- var
-     reservedOp "="
-     value <- typeP -- varST permite parsear nombres que representan tipos
-     return $ SType name value
+sintype::P (SDecl a)
+sintype = do reserved "type"
+             name <- var
+             reservedOp "="
+             value <- typeP
+             return $ SType name value
 
 
 
 -- | Parser de programas (listas de declaraciones y sinonimos de tipos) 
 program :: P ([SDecl STerm])
 --program e = many $ sdecl e
-program = many $ sdeclOrSintype []
+program = many $ sdeclOrSintype
              -- separa en 2 listas de acuerdo a si son lefts o rights
 
 
---sdeclOrSintype :: [(Name,Ty)]->ParsecT String () Identity (Either (SDecl STerm) (Name, Ty))
---sdeclOrSintype e = try (Left <$> sdecl e) <|> (Right <$> sintype e)
-sdeclOrSintype :: [(Name,Ty)]->ParsecT String () Identity (SDecl STerm)
-sdeclOrSintype e = try (sdecl e <|> sintype e)
+
+sdeclOrSintype :: ParsecT String () Identity (SDecl STerm)
+sdeclOrSintype = try (sdecl <|> sintype)
 
 
--- | Parsea una declaración a un término
---Útil para las sesiones interactivas
--- declOrTm :: P (Either (Decl NTerm) NTerm)
--- declOrTm =  try (Left <$> decl) <|> (Right <$> expr)
 
 
 
@@ -270,7 +270,7 @@ runP :: P a -> String -> String -> Either ParseError a
 runP p s filename = runParser (whiteSpace *> p <* eof) () filename s
 
 --para debugging en uso interactivo (ghci)
-parse :: String -> [(Name,Ty)]-> STerm
-parse s e = case runP (sexpr e) s "" of
-                 Right t -> t
-                 Left e -> error ("no parse: " ++ show s)
+parse ::String ->  STerm
+parse s = case runP sexpr s "" of
+                Right t -> t
+                Left e -> error ("no parse: " ++ show s)

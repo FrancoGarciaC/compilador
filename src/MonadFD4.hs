@@ -76,7 +76,6 @@ getLastFile = gets lfile
 addDecl :: MonadFD4 m => Decl Term -> m ()
 addDecl d = modify (\s -> s { glb = d : glb s, cantDecl = cantDecl s + 1 })
 
--- implementado por nosotros  
 addTy :: MonadFD4 m => Name -> Ty -> m ()
 addTy n ty = modify (\s -> s { tyEnv = (n,ty) : tyEnv s })
 

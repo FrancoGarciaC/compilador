@@ -1,0 +1,2 @@
+let prueba (a: Nat)  : Nat->Nat = let ej (b:Nat) : Nat = 3+a+b
+                                  in  ej 

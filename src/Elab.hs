@@ -60,6 +60,7 @@ buildType ((_,t):ts) = FunTy t  $ buildType ts
 -- convert e NatTy  = NatTy                         
 
 
+
 desugar ::SDecl STerm ->  Decl NTerm
 desugar decl =
                let  pos = sdeclPos decl

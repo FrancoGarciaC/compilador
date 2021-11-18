@@ -190,7 +190,6 @@ parseIO filename p x = case runP p x filename of
 
 typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Decl Term)
 typecheckDecl decl = do
-        e <- getSinTypEnv
         let  (Decl _ _ t) = desugar decl
              p = sdeclPos decl
              x = sdeclName decl
@@ -320,8 +319,7 @@ handleTerm term = do
 printPhrase   :: MonadFD4 m => String -> m ()
 printPhrase x =
   do
-    x' <- parseIO "<interactive>" (stm []) x
-    e <- getSinTypEnv
+    x' <- parseIO "<interactive>" stm x    
     let ex = elab (desugar' x')
     t  <- case x' of
            (Sv p f) -> maybe ex id <$> lookupDecl f
@@ -333,7 +331,7 @@ printPhrase x =
 
 typeCheckPhrase :: MonadFD4 m => String -> m ()
 typeCheckPhrase x = do
-         t <- parseIO "<interactive>" (stm []) x
+         t <- parseIO "<interactive>" stm x
          e <- getSinTypEnv
          let tt = elab (desugar' t)
          s <- get
