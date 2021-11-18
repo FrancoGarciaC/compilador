@@ -40,6 +40,28 @@ data SConst = SCNat Int
 data BinaryOp = Add | Sub
   deriving Show
 
+
+-- Tipo de datos para maquina CEK  
+--Valores
+data Val = N Int | ClosFun Env Int Term | ClosFix Env Name Int Term | 
+--Frames
+fr ::= ρ ·  t
+| clos
+| ρ · ifz  then t else e
+| ρ ·  ⊕ t
+| v ⊕
+| print str 
+
+
+data Frame info  = FrAp info Env Term 
+           | FrClos info Closure
+           | FrOpTer info Env Op Term
+           | FrOpVal info Op Term
+           | FrPrint info String
+           | FrIf info Env Term 
+-- Continuaciones
+data Kont = [Frame]
+
 -- | tipo de datos de declaraciones, parametrizado por el tipo del cuerpo de la declaración
 data Decl a = Decl
   { declPos  :: Pos

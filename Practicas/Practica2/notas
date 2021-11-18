@@ -1,0 +1,19 @@
+Implementación:
+
+1)Crear tipo de datos para los valores
+data V = N Int | ClosFun Env Int Term | ClosFix Env Name Int Term
+
+2) Crear para los frames y crear stack
+data Frame = FrAp Env Term | FrOp Env Op Term | FrVal Env Term | FrIf Env Term 
+
+3) Definir el stack
+data Stack = [Frame]
+
+4) Crear modulo CEK
+
+5) Definir search y destroy
+search :: MonadFD4 m => Term -> Env -> Kont -> m Val
+destroy :: MonadFD4 m => Val -> Kont -> m Val
+
+
+
