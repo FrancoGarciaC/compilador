@@ -218,7 +218,7 @@ declOrStm ::  P (Either (SDecl STerm) STerm)
 declOrStm =  try (Left <$> sdeclOrSintype) <|> (Right <$> sexpr)
 
 
--- Parser de sintactica sugar
+--Términos con sintactic sugar
 stm :: P STerm
 stm = sapp  <|> slam  <|> sifz <|> sprintOp <|> sfix  <|> sletexp
 

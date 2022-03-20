@@ -6,5 +6,5 @@ let rec exp (m:Nat) (n:Nat) : Nat = ifz n then 1 else let n' : Nat = n-1 in
                                                       prod m res
 let ej1 (x:Nat) : Nat = resta 5 x
 let ej2 (f:Nat->Nat) (g:Nat->Nat) : Nat = g (f 3)
-
+let rec recursivo ( n:Nat ) : Nat = ifz n then 0 else ( recursivo (n-1))
 

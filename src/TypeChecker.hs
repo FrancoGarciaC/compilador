@@ -105,7 +105,6 @@ tcDecl (Decl p n t) = do
     case mty of
          Nothing -> do  --no está declarado 
                      s <- get
-                     error $ (show t) ++"\n"++(show $ tyEnv s)
                      ty <- tc t (tyEnv s)                 
                      addTy n ty
          Just _  -> failPosFD4 p $ n ++" ya está declarado"
