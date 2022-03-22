@@ -343,7 +343,6 @@ typeCheckPhrase x = do
 
 runEval :: MonadFD4 m => TypeEval -> Term -> m Term
 runEval NEval t = eval t
-runEval CEKEval t = do  d <- search t [] []
-                        printFD4 $ "Sale de search con "++show d 
+runEval CEKEval t = do  d <- search t [] []                        
                         return $ fromValtoTerm d
 
