@@ -70,23 +70,8 @@ pattern PRINT    = 13
 pattern PRINTN   = 14
 
 
-
-{-
-data Tm info var =
-    V info var
-  | Const info Const
-  | Lam info Name Ty (Tm info var)
-  | App info (Tm info var) (Tm info var)
-  | Print info String (Tm info var)
-  | BinaryOp info BinaryOp (Tm info var) (Tm info var)
-  | Fix info Name Ty Name Ty (Tm info var)
-  | IfZ info (Tm info var) (Tm info var) (Tm info var)
-  | Let info Name Ty (Tm info var)  (Tm info var)
-  
-  deriving (Show, Functor)-}
-
 bc :: MonadFD4 m => Term -> m Bytecode
-V _
+bc (V _ (Bound i)) = return [ACCESS,i]
 bc (Const _ (CNat n)) = return [CONST,n]
 bc (Lam _ n ty t) = do  bcode <- bc t
                         return $ [FUNCTION,length bcode]++bcode++[RETURN]
@@ -114,20 +99,12 @@ bc (Let _ _ ty t1 t2) = do  bc1 <- bc t1
                             return $ bc1 ++ [SHIFT] ++ bc2 ++ [DROP]
 
 bc (Fix _ _ _ _ _ t) = do bc1 <- bc t
-                          return $ [FUNCTION,lengh bc1]++bc1++[RETURN,FIX]
+                          return $ [FUNCTION,length bc1]++bc1++[RETURN,FIX]
 
 bc _ = error ""
 
 
 type Module = [Decl Term]
-{-
-data Decl a = Decl
-  { declPos  :: Pos
-  , declName :: Name
-  , declBody :: a
-  }-}
-
-  -- | Let info Name Ty (Tm info var)  (Tm info var)
 
 bytecompileModule :: MonadFD4 m => Module -> m Bytecode
 bytecompileModule ds = do let t = elabTerm ds
@@ -138,16 +115,26 @@ elabTerm :: [Decl Term] -> Term
 elabTerm [Decl pos name body] = replaceGlobal body
 
 elabTerm ((Decl pos name body):xs) = Let pos name NatTy (replaceGlobal body)  $ close name (elabTerm xs)
--- Falta reemplazar Global por Free en 
 
 
 replaceGlobal :: Term -> Term
+replaceGlobal (V i (Global n)) = V i (Free n)
+replaceGlobal (Lam i n ty t) = Lam i n ty (replaceGlobal t)
+replaceGlobal (App i t1 t2) = App i (replaceGlobal t1) (replaceGlobal t2)
+replaceGlobal (Print i s t) = Print i s (replaceGlobal t)
+replaceGlobal (BinaryOp i op t1 t2) = BinaryOp i op (replaceGlobal t1) (replaceGlobal t2)
+replaceGlobal (IfZ i t t1 t2) = IfZ i (replaceGlobal t) (replaceGlobal t1) (replaceGlobal t2)
+replaceGlobal (Fix i n ty nv tyn t) = Fix i n ty nv tyn (replaceGlobal t)
+replaceGlobal (Let i n ty t1  t2) = Let i n ty (replaceGlobal t1) (replaceGlobal t2)
+replaceGlobal q = q
 
 
 
 -- | Toma un bytecode, lo codifica y lo escribe un archivo 
 bcWrite :: Bytecode -> FilePath -> IO ()
-bcWrite bs filename = BS.writeFile filename (encode $ BC $ fromIntegral <$> bs)
+bcWrite bs filename = do  print $ show bs
+                          print $ show (encode $ BC $ fromIntegral <$> bs)
+                          BS.writeFile filename (encode $ BC $ fromIntegral <$> bs)                          
 
 ---------------------------
 -- * Ejecución de bytecode
@@ -155,7 +142,8 @@ bcWrite bs filename = BS.writeFile filename (encode $ BC $ fromIntegral <$> bs)
 
 -- | Lee de un archivo y lo decodifica a bytecode
 bcRead :: FilePath -> IO Bytecode
-bcRead filename = map fromIntegral <$> un32  <$> decode <$> BS.readFile filename
+bcRead filename = map fromIntegral <$> un32  <$> decode <$> BS.readFile filename                  
+
 
 runBC :: MonadFD4 m => Bytecode -> m ()
 runBC c = error "implementame"

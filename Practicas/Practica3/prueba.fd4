@@ -1,0 +1,2 @@
+let  x : Nat = 4
+let p : Nat = print "x:=" x

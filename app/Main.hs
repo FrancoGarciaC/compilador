@@ -17,7 +17,8 @@ import Control.Monad.Catch (MonadMask)
 
 --import Control.Monad
 import Control.Monad.Trans
-import Data.List (nub,  intersperse, isPrefixOf )
+import Data.List (nub,  intersperse, isPrefixOf)
+import Data.List.Split (endBy)
 import Data.Char ( isSpace )
 import Control.Exception ( catch , IOException )
 import System.IO ( hPrint, stderr, hPutStrLn )
@@ -36,7 +37,10 @@ import Eval ( eval )
 import PPrint ( pp , ppTy, ppDecl )
 import MonadFD4
 import TypeChecker ( tc, tcDecl )
-import CEK 
+import CEK
+import System.IO.Extra (FilePath)
+import Bytecompile 
+import MonadFD4 (failFD4, MonadFD4)
 
 
 prompt :: String
@@ -49,8 +53,8 @@ data Mode =
     Interactive
   | Typecheck
   | InteractiveCEK
-  -- | Bytecompile 
-  -- | RunVM
+  | Bytecompile
+  | RunVM
   -- | CC
   -- | Canon
   -- | LLVM
@@ -61,8 +65,8 @@ parseMode :: Parser (Mode,Bool)
 parseMode = (,) <$>
       (flag' Typecheck ( long "typecheck" <> short 't' <> help "Chequear tipos e imprimir el término")
       <|> flag' InteractiveCEK (long "interactiveCEK" <> short 'k' <> help "Ejecutar interactivamente en la CEK")
-  -- <|> flag' Bytecompile (long "bytecompile" <> short 'm' <> help "Compilar a la BVM")
-  -- <|> flag' RunVM (long "runVM" <> short 'r' <> help "Ejecutar bytecode en la BVM")
+      <|> flag' Bytecompile (long "bytecompile" <> short 'm' <> help "Compilar a la BVM")
+      <|> flag' RunVM (long "runVM" <> short 'r' <> help "Ejecutar bytecode en la BVM")
       <|> flag Interactive Interactive ( long "interactive" <> short 'i' <> help "Ejecutar en forma interactiva")
   -- <|> flag' CC ( long "cc" <> short 'c' <> help "Compilar a código C")
   -- <|> flag' Canon ( long "canon" <> short 'n' <> help "Imprimir canonicalización")
@@ -101,10 +105,10 @@ main = execParser opts >>= go
               runOrFail $ mapM_ (typecheckFile opt) files
     go (InteractiveCEK,_, files) = do runFD4 (runInputT defaultSettings (repl CEKEval files))
                                       return ()
-    -- go (Bytecompile,_, files) =
-    --           runOrFail $ mapM_ bytecompileFile files
-    -- go (RunVM,_,files) =
-    --           runOrFail $ mapM_ bytecodeRun files
+    go (Bytecompile,_, files) =
+               runOrFail $ mapM_ bytecompileFile files
+    go (RunVM,_,files) =
+               runOrFail $ mapM_ bytecodeRun files
     -- go (CC,_, files) =
     --           runOrFail $ mapM_ ccFile files
     -- go (Canon,_, files) =
@@ -143,7 +147,7 @@ repl e args = do
 
 compileFiles ::  MonadFD4 m => TypeEval -> [FilePath] -> m ()
 compileFiles _ []     = return ()
-compileFiles e (x:xs) = do  
+compileFiles e (x:xs) = do
         modify (\s -> s { lfile = x, inter = False })
         compileFile e x
         compileFiles e xs
@@ -196,11 +200,18 @@ typecheckDecl decl = do
         tcDecl dd
         return dd
 
--- Nat
--- SinType n
--- Ty->Ty
--- FunTy (SinType n) Ty
+bytecompileFile :: MonadFD4 m => FilePath -> m ()
+bytecompileFile filePath = do ds <- loadFile filePath
+                              ds' <- mapM typecheckDecl ds
+                              bc <- bytecompileModule ds'
+                              case endBy ".fd4" filePath of 
+                                [path] -> liftIO $ bcWrite bc $ path ++ ".byte"
+                                _ -> failFD4 "Error: el archivo debe tener extension .fd4"        
 
+bytecodeRun :: MonadFD4 m => FilePath -> m()
+bytecodeRun filePath = do bc <- liftIO $ bcRead filePath
+                          printFD4 $ show bc
+                              
 
 
 
@@ -309,19 +320,19 @@ compilePhrase e x =   do
       Right t -> handleTerm e t
 
 handleTerm ::  MonadFD4 m => TypeEval -> STerm -> m ()
-handleTerm e term = do         
+handleTerm e term = do
          let t = desugar' term
          let tt = elab t
          s <- get
          ty <- tc tt (tyEnv s)
          te <- runEval e tt
          ppte <- pp te
-         printFD4 (ppte ++ " : " ++ ppTy ty)         
-         
+         printFD4 (ppte ++ " : " ++ ppTy ty)
+
 printPhrase   :: MonadFD4 m => String -> m ()
 printPhrase x =
   do
-    x' <- parseIO "<interactive>" stm x    
+    x' <- parseIO "<interactive>" stm x
     let ex = elab (desugar' x')
     t  <- case x' of
            (Sv p f) -> maybe ex id <$> lookupDecl f
@@ -343,6 +354,6 @@ typeCheckPhrase x = do
 
 runEval :: MonadFD4 m => TypeEval -> Term -> m Term
 runEval NEval t = eval t
-runEval CEKEval t = do  d <- search t [] []                        
+runEval CEKEval t = do  d <- search t [] []
                         return $ fromValtoTerm d
 
