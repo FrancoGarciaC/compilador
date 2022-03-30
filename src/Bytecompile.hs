@@ -23,6 +23,7 @@ import Data.Binary.Put ( putWord32le )
 import Data.Binary.Get ( getWord32le, isEmpty )
 
 import Data.Char
+import Control.Monad.State.Lazy (Monad)
 
 type Opcode = Int
 type Bytecode = [Int]
@@ -110,15 +111,23 @@ bytecompileModule :: MonadFD4 m => Module -> m Bytecode
 bytecompileModule ds = do let t = elabTerm ds
                           bc t
 
-
+-- Construye un término Let a partir de una lista de declaraciones
+-- cerrando las variables libres en el cuerpo de cada declaracion 
+-- y convirtiendo variables globales en libres
 elabTerm :: [Decl Term] -> Term
-elabTerm [Decl pos name body] = replaceGlobal body
-
+elabTerm [Decl _ _ body] = replaceGlobal body
 elabTerm ((Decl pos name body):xs) = Let pos name NatTy (replaceGlobal body)  $ close name (elabTerm xs)
+elabTerm [] = error "No debería pasar"
 
 
-replaceGlobal :: Term -> Term
-replaceGlobal (V i (Global n)) = V i (Free n)
+-- Cambiar todas las variables globales por libres en el término
+replaceGlobal::Term -> Term
+replaceGlobal = fmap changeGlobal
+  where changeGlobal (Global n) = Free n
+        changeGlobal v = v
+  
+
+{-replaceGlobal (V i (Global n)) = V i (Free n)
 replaceGlobal (Lam i n ty t) = Lam i n ty (replaceGlobal t)
 replaceGlobal (App i t1 t2) = App i (replaceGlobal t1) (replaceGlobal t2)
 replaceGlobal (Print i s t) = Print i s (replaceGlobal t)
@@ -126,7 +135,7 @@ replaceGlobal (BinaryOp i op t1 t2) = BinaryOp i op (replaceGlobal t1) (replaceG
 replaceGlobal (IfZ i t t1 t2) = IfZ i (replaceGlobal t) (replaceGlobal t1) (replaceGlobal t2)
 replaceGlobal (Fix i n ty nv tyn t) = Fix i n ty nv tyn (replaceGlobal t)
 replaceGlobal (Let i n ty t1  t2) = Let i n ty (replaceGlobal t1) (replaceGlobal t2)
-replaceGlobal q = q
+replaceGlobal q = q-}
 
 
 
@@ -140,10 +149,46 @@ bcWrite bs filename = do  print $ show bs
 -- * Ejecución de bytecode
 ---------------------------
 
+-- Tipo de datos para la BVM  
+
+type Env = [Val]
+type Stack = [Val]
+data Val = I Int | Fun Env Bytecode | RA Env Bytecode  deriving Show
+
+
+
+data Closure = ClosFun Env Name Ty Term | ClosFix Env Name Ty Name Ty Term  deriving Show
+
+
+
 -- | Lee de un archivo y lo decodifica a bytecode
 bcRead :: FilePath -> IO Bytecode
 bcRead filename = map fromIntegral <$> un32  <$> decode <$> BS.readFile filename                  
 
 
 runBC :: MonadFD4 m => Bytecode -> m ()
-runBC c = error "implementame"
+runBC c = runBC' c [] []
+
+
+
+
+runBC' :: MonadFD4 m => Bytecode -> Env -> Stack -> m()
+
+runBC' (CONST:n:c) e s = runBC' c e (I n:s)
+
+runBC' (ACCESS:i:c) e s = runBC' c e (e!!i:s)
+
+runBC' (ADD:c) e (I n1:I n2:s) = runBC' c e (I (n1+n2) :s)
+
+runBC' (SUB:c) e (I n1:I n2:s) = runBC' c e (I (n1-n2) :s)
+
+runBC' (CALL:c) e (v:Fun ef cf :s)  = runBC' cf (v:ef) (RA e c:s)
+
+--runBC' (bcz:bc1:bc2:IFZ:c) e s  = runBC' c e (:s)
+
+runBC' (FUNCTION:ctos:c) e (n1:n2:s) = runBC' (drop ctos c) e (Fun e c:s)
+
+runBC' (RETURN:_) _ (v:RA e c:s) = runBC' c e (v:s)
+
+
+runBC' _ _ _ = error "No esta contemplado"

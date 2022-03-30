@@ -210,7 +210,7 @@ bytecompileFile filePath = do ds <- loadFile filePath
 
 bytecodeRun :: MonadFD4 m => FilePath -> m()
 bytecodeRun filePath = do bc <- liftIO $ bcRead filePath
-                          printFD4 $ show bc
+                          runBC bc
                               
 
 

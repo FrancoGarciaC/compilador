@@ -79,7 +79,6 @@ data Stm info var =
   | SFix info Name Ty [(Name,Ty)] (Stm info var)
   | SIfZ info (Stm info var) (Stm info var) (Stm info var)
   deriving (Show,Functor)
---let prueba () : = let f () = 
   
 
 
