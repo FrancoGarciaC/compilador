@@ -21,6 +21,7 @@ module MonadFD4 (
   lookupSinTy,
   lookupTy,
   printFD4,
+  printFD42,
   setLastFile,
   getLastFile,
   eraseLastFileDecls,
@@ -66,6 +67,11 @@ class (MonadIO m, MonadState GlEnv m, MonadError Error m) => MonadFD4 m where
 
 printFD4 :: MonadFD4 m => String -> m ()
 printFD4 = liftIO . putStrLn
+
+
+printFD42 :: MonadFD4 m => String -> m ()
+printFD42 = liftIO . putStr
+
 
 setLastFile :: MonadFD4 m => FilePath -> m ()
 setLastFile filename = modify (\s -> s {lfile = filename})

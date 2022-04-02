@@ -72,44 +72,55 @@ pattern PRINTN   = 14
 
 
 bc :: MonadFD4 m => Term -> m Bytecode
-bc (V _ (Bound i)) = return [ACCESS,i]
-bc (Const _ (CNat n)) = return [CONST,n]
-bc (Lam _ n ty t) = do  bcode <- bc t
-                        return $ [FUNCTION,length bcode]++bcode++[RETURN]
-bc (App _ t1 t2) =  do  bc1 <- bc t1
-                        bc2 <- bc t2
-                        return $ bc1++bc2++[CALL]
-bc (Print _ s t) = do t' <- bc t
+bc (V _ (Bound i)) = do printFD4 "Estoy en V"
+                        return [ACCESS,i]
+bc (Const _ (CNat n)) = do printFD4 "Estoy en Const"
+                           return [CONST,n]
+bc (Lam _ n ty t) = do printFD4 "Estoy en Lam"
+                       bcode <- bc t
+                       return $ [FUNCTION,length bcode +1]++bcode++[RETURN]
+
+bc (App _ t1 t2) =  do printFD4 "Estoy en App"
+                       bc1 <- bc t1
+                       bc2 <- bc t2
+                       return $ bc1++bc2++[CALL]
+bc (Print _ s t) = do printFD4 "Estoy en Print"
+                      t' <- bc t
                       return $ [PRINT] ++ map ord s ++ [NULL] ++ t' ++ [PRINTN]
 
-bc (BinaryOp _ op t1 t2) = do bc1 <- bc t1
+bc (BinaryOp _ op t1 t2) = do printFD4 "Estoy en BinaryOP"
+                              bc1 <- bc t1
                               bc2 <- bc t2
                               return $ bc1++bc2++[bcOp op]
 
  where  bcOp Add = ADD
         bcOp Sub = SUB
 
-bc (IfZ _ z t1 t2) = do bcz <- bc z
+bc (IfZ _ z t1 t2) = do printFD4 "Estoy en IfZ"
+                        bcz <- bc z
                         bc1 <- bc t1
                         bc2 <- bc t2
-                        return $ bcz ++ bc1 ++ bc2 ++ [IFZ]
+                        return $ [IFZ,length bcz,length bc1,length bc2] ++ bcz ++ bc1 ++ bc2
 
 
-bc (Let _ _ ty t1 t2) = do  bc1 <- bc t1
-                            bc2 <- bc t2
-                            return $ bc1 ++ [SHIFT] ++ bc2 ++ [DROP]
+bc (Let _ _ ty t1 t2) = do printFD4 "Estoy en Let"
+                           bc1 <- bc t1
+                           bc2 <- bc t2
+                           return $ bc1 ++ [SHIFT] ++ bc2 ++ [DROP]
 
-bc (Fix _ _ _ _ _ t) = do bc1 <- bc t
-                          return $ [FUNCTION,length bc1]++bc1++[RETURN,FIX]
+bc (Fix _ _ _ _ _ t) = do printFD4 "Estoy en Fix"
+                          bc1 <- bc t
+                          return $ [FUNCTION,length bc1 +1]++bc1++[RETURN,FIX]
 
-bc _ = error ""
+bc _ = error "Estoy en bc, esto no debería pasar"
 
 
 type Module = [Decl Term]
 
 bytecompileModule :: MonadFD4 m => Module -> m Bytecode
 bytecompileModule ds = do let t = elabTerm ds
-                          bc t
+                          do b <- bc t
+                             return $ b++[STOP]
 
 -- Construye un término Let a partir de una lista de declaraciones
 -- cerrando las variables libres en el cuerpo de cada declaracion 
@@ -118,6 +129,7 @@ elabTerm :: [Decl Term] -> Term
 elabTerm [Decl _ _ body] = replaceGlobal body
 elabTerm ((Decl pos name body):xs) = Let pos name NatTy (replaceGlobal body)  $ close name (elabTerm xs)
 elabTerm [] = error "No debería pasar"
+--elabTerm xs = error $ show xs
 
 
 -- Cambiar todas las variables globales por libres en el término
@@ -125,7 +137,7 @@ replaceGlobal::Term -> Term
 replaceGlobal = fmap changeGlobal
   where changeGlobal (Global n) = Free n
         changeGlobal v = v
-  
+
 
 {-replaceGlobal (V i (Global n)) = V i (Free n)
 replaceGlobal (Lam i n ty t) = Lam i n ty (replaceGlobal t)
@@ -143,7 +155,7 @@ replaceGlobal q = q-}
 bcWrite :: Bytecode -> FilePath -> IO ()
 bcWrite bs filename = do  print $ show bs
                           print $ show (encode $ BC $ fromIntegral <$> bs)
-                          BS.writeFile filename (encode $ BC $ fromIntegral <$> bs)                          
+                          BS.writeFile filename (encode $ BC $ fromIntegral <$> bs)
 
 ---------------------------
 -- * Ejecución de bytecode
@@ -163,7 +175,7 @@ data Closure = ClosFun Env Name Ty Term | ClosFix Env Name Ty Name Ty Term  deri
 
 -- | Lee de un archivo y lo decodifica a bytecode
 bcRead :: FilePath -> IO Bytecode
-bcRead filename = map fromIntegral <$> un32  <$> decode <$> BS.readFile filename                  
+bcRead filename = map fromIntegral <$> un32  <$> decode <$> BS.readFile filename
 
 
 runBC :: MonadFD4 m => Bytecode -> m ()
@@ -174,21 +186,98 @@ runBC c = runBC' c [] []
 
 runBC' :: MonadFD4 m => Bytecode -> Env -> Stack -> m()
 
-runBC' (CONST:n:c) e s = runBC' c e (I n:s)
+runBC' (CONST:n:c) e s = do printFD4 "Estoy en bound"
+                            runBC' c e (I n:s)
 
-runBC' (ACCESS:i:c) e s = runBC' c e (e!!i:s)
+runBC' (ACCESS:i:c) e s = do printFD4 "Estoy en ACCESS"
+                             runBC' c e (e!!i:s)
 
-runBC' (ADD:c) e (I n1:I n2:s) = runBC' c e (I (n1+n2) :s)
+runBC' (ADD:c) e (I n1:I n2:s) = do printFD4 "Estoy en ADD"
+                                    runBC' c e (I (n1+n2) :s)
 
-runBC' (SUB:c) e (I n1:I n2:s) = runBC' c e (I (n1-n2) :s)
+runBC' (SUB:c) e (I n1:I n2:s) = do printFD4 "Estoy en SUB x="
+                                    let  res = max (n1-n2) 0
+                                    runBC' c e (I res :s)
 
-runBC' (CALL:c) e (v:Fun ef cf :s)  = runBC' cf (v:ef) (RA e c:s)
+runBC' (CALL:c) e (v:Fun ef cf :s)  = do printFD4 "Estoy en CALL"
+                                         printFD4 $ "Con valor " ++ show v
+                                         runBC' cf (v:ef) (RA e c:s)
 
---runBC' (bcz:bc1:bc2:IFZ:c) e s  = runBC' c e (:s)
+runBC' (IFZ:ctosZ:ctosA:ctosB:c) e s  =
+          do printFD4 "Estoy en IFZ"
+             let c' = drop (ctosZ+ctosA+ctosB) c
+             let bcz = take ctosZ c
+             let bc1 = take ctosA (drop ctosZ c) ++ c'
+             let bc2 = drop (ctosZ+ctosA) c
+             runBC' bcz e (RA e bc1:RA e bc2:s)
 
-runBC' (FUNCTION:ctos:c) e (n1:n2:s) = runBC' (drop ctos c) e (Fun e c:s)
 
-runBC' (RETURN:_) _ (v:RA e c:s) = runBC' c e (v:s)
+runBC' [] e (I c:RA e1 bc1:RA e2 bc2:s) | c == 0 = do printFD4 "Estoy en caso = 0"
+                                                      runBC' bc1 e1 s
+                                        | otherwise = do printFD4 "Estoy en caso != 0"
+                                                         runBC' bc2 e2 s
+
+runBC' (FUNCTION:ctos:c) e s = do printFD4 "Estoy en FUNCTION"
+                                  runBC' (drop ctos c) e (Fun e c:s)
+
+runBC' (RETURN:_) _ (v:RA e c:s) = do printFD4 "Estoy en RETURN "                                      
+                                      runBC' c e (v:s)
+
+runBC' (FIX:c) e (Fun _ cf:s) = do printFD4 "Estoy en FIX"
+                                   let efix = Fun efix cf:e
+                                   runBC' c e (Fun efix cf:s)
 
 
-runBC' _ _ _ = error "No esta contemplado"
+runBC' (PRINTN:c) e q@(I n:s) = do printFD4 "Estoy en PRINTN"
+                                   printFD4 $ show n
+                                   runBC' c e q
+
+runBC' (PRINT:c) e s = do printFD4 "Estoy en PRINT"
+                          let (str,c') = decode "" c
+                          printFD42 str
+                          runBC'  c' e s
+
+
+
+  where decode s (NULL:c) = (s,c)
+        decode s (x:xs) = decode (s++[chr x]) xs
+        decode _ [] = error "Esto no debería pasar"
+
+
+
+runBC' (SHIFT:c) e (v:s) = do printFD4 "Estoy en SHIFT"
+                              runBC' c (v:e) s
+
+runBC' (DROP:c) (v:e) s = do printFD4 "Estoy en DROP"
+                             runBC' c e s
+
+runBC' (STOP:_) _ _ = do printFD4 "Estoy en STOP"
+                         return ()
+
+runBC' xs e s = do printFD4 "Esto no deberia pasar"
+                   error $ "BC:"++show xs++"\n"++
+                           "Entorno:" ++ show e ++ "\n"++
+                           "Stack:" ++ show s
+
+
+
+{-pattern NULL     = 0
+pattern RETURN   = 1
+pattern CONST    = 2
+pattern ACCESS   = 3
+pattern FUNCTION = 4
+pattern CALL     = 5
+pattern ADD      = 6
+pattern SUB      = 7
+pattern IFZ      = 8
+pattern FIX      = 9
+pattern STOP     = 10
+pattern SHIFT    = 11
+pattern DROP     = 12
+pattern PRINT    = 13
+pattern PRINTN   = 14-}
+--120 x
+--58 :
+--61 =
+-- [1,9,11,3,0,2,1,5,2,0,5,12,10]
+-- [4,25,4,23,8,2,2,14,3,0,3,1,3,2,3,1,5,3,0,2,1,7,5,2,1,6,1,1,9,11,3,0,2,1,5,2,0,5,12,10]

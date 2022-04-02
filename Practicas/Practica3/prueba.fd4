@@ -1,2 +1,3 @@
-let  x : Nat = 4
-let p : Nat = print "x:=" x
+let prog ( x:Nat ) : Nat = print "x:=" x
+let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else (suma m (n-1))+1
+let p : Nat = prog (suma 2 4)

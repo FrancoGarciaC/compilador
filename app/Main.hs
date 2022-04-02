@@ -203,13 +203,14 @@ typecheckDecl decl = do
 bytecompileFile :: MonadFD4 m => FilePath -> m ()
 bytecompileFile filePath = do ds <- loadFile filePath
                               ds' <- mapM typecheckDecl ds
-                              bc <- bytecompileModule ds'
+                              bc <- bytecompileModule ds'                              
                               case endBy ".fd4" filePath of 
                                 [path] -> liftIO $ bcWrite bc $ path ++ ".byte"
                                 _ -> failFD4 "Error: el archivo debe tener extension .fd4"        
 
 bytecodeRun :: MonadFD4 m => FilePath -> m()
 bytecodeRun filePath = do bc <- liftIO $ bcRead filePath
+                          printFD4 $ show bc
                           runBC bc
                               
 
