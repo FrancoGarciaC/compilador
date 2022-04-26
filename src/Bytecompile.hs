@@ -181,22 +181,26 @@ bcRead filename = map fromIntegral <$> un32  <$> decode <$> BS.readFile filename
 runBC :: MonadFD4 m => Bytecode -> m ()
 runBC c = runBC' c [] []
 
-
-
-
 runBC' :: MonadFD4 m => Bytecode -> Env -> Stack -> m()
 
-runBC' (CONST:n:c) e s = do printFD4 "Estoy en bound"
+runBC' (CONST:n:c) e s = do printFD4 "Estoy en CONST"
+                            printFD4 $ "Const:"++show n
                             runBC' c e (I n:s)
 
 runBC' (ACCESS:i:c) e s = do printFD4 "Estoy en ACCESS"
+                             printFD4 $ "Index:"++show i
+                             case e!!i of
+                               I i -> printFD4 $ "Con v :" ++ show i
+                               _ -> printFD4 "Tengo fun"
                              runBC' c e (e!!i:s)
 
 runBC' (ADD:c) e (I n1:I n2:s) = do printFD4 "Estoy en ADD"
+                                    printFD4 $ "n1:"++show n1++" n2:"++show n2
                                     runBC' c e (I (n1+n2) :s)
 
 runBC' (SUB:c) e (I n1:I n2:s) = do printFD4 "Estoy en SUB x="
-                                    let  res = max (n1-n2) 0
+                                    printFD4 $ "n1:"++show n1++" n2:"++show n2
+                                    let  res = max (n2-n1) 0
                                     runBC' c e (I res :s)
 
 runBC' (CALL:c) e (v:Fun ef cf :s)  = do printFD4 "Estoy en CALL"
@@ -213,8 +217,10 @@ runBC' (IFZ:ctosZ:ctosA:ctosB:c) e s  =
 
 
 runBC' [] e (I c:RA e1 bc1:RA e2 bc2:s) | c == 0 = do printFD4 "Estoy en caso = 0"
+                                                      printFD4 $ "BC "++show bc1                                        
                                                       runBC' bc1 e1 s
-                                        | otherwise = do printFD4 "Estoy en caso != 0"
+                                        | otherwise = do printFD4 $ "Estoy en caso != 0 "++show c
+                                                         printFD4 $ "BC2 "++show bc2                                        
                                                          runBC' bc2 e2 s
 
 runBC' (FUNCTION:ctos:c) e s = do printFD4 "Estoy en FUNCTION"
