@@ -131,25 +131,11 @@ elabTerm ((Decl pos name body):xs) = Let pos name NatTy (replaceGlobal body)  $ 
 elabTerm [] = error "No debería pasar"
 --elabTerm xs = error $ show xs
 
-
 -- Cambiar todas las variables globales por libres en el término
 replaceGlobal::Term -> Term
 replaceGlobal = fmap changeGlobal
   where changeGlobal (Global n) = Free n
         changeGlobal v = v
-
-
-{-replaceGlobal (V i (Global n)) = V i (Free n)
-replaceGlobal (Lam i n ty t) = Lam i n ty (replaceGlobal t)
-replaceGlobal (App i t1 t2) = App i (replaceGlobal t1) (replaceGlobal t2)
-replaceGlobal (Print i s t) = Print i s (replaceGlobal t)
-replaceGlobal (BinaryOp i op t1 t2) = BinaryOp i op (replaceGlobal t1) (replaceGlobal t2)
-replaceGlobal (IfZ i t t1 t2) = IfZ i (replaceGlobal t) (replaceGlobal t1) (replaceGlobal t2)
-replaceGlobal (Fix i n ty nv tyn t) = Fix i n ty nv tyn (replaceGlobal t)
-replaceGlobal (Let i n ty t1  t2) = Let i n ty (replaceGlobal t1) (replaceGlobal t2)
-replaceGlobal q = q-}
-
-
 
 -- | Toma un bytecode, lo codifica y lo escribe un archivo 
 bcWrite :: Bytecode -> FilePath -> IO ()
@@ -265,25 +251,3 @@ runBC' xs e s = do printFD4 "Esto no deberia pasar"
                            "Entorno:" ++ show e ++ "\n"++
                            "Stack:" ++ show s
 
-
-
-{-pattern NULL     = 0
-pattern RETURN   = 1
-pattern CONST    = 2
-pattern ACCESS   = 3
-pattern FUNCTION = 4
-pattern CALL     = 5
-pattern ADD      = 6
-pattern SUB      = 7
-pattern IFZ      = 8
-pattern FIX      = 9
-pattern STOP     = 10
-pattern SHIFT    = 11
-pattern DROP     = 12
-pattern PRINT    = 13
-pattern PRINTN   = 14-}
---120 x
---58 :
---61 =
--- [1,9,11,3,0,2,1,5,2,0,5,12,10]
--- [4,25,4,23,8,2,2,14,3,0,3,1,3,2,3,1,5,3,0,2,1,7,5,2,1,6,1,1,9,11,3,0,2,1,5,2,0,5,12,10]

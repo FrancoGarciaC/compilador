@@ -1,0 +1,4 @@
+let p : Nat = ifz 0 then print "x=" 5
+              else print "y=" 6
+
+let prog : Nat = p              
