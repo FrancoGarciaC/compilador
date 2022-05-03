@@ -303,12 +303,7 @@ void run(code init_c)
 
 			value bcTrue;
 			value bcFalse;
-			value bcTemp;
 
-			bcTemp.i = c[c1];
-			printf("1\n");			
-			c[0] = IFSTOP;			
-			printf("2\n");						
 			struct clo clos = { .clo_env = e, .clo_body = c };
 			printf("3\n");			
 			bcTrue.clo = clos;
@@ -321,29 +316,30 @@ void run(code init_c)
 			printf("7\n");			
 			bcFalse.i = c3;
 			printf("8\n");			
-			e = env_push(e,bcTrue);
+			*s++ = bcTrue;
 			printf("9\n");			
-			e = env_push(e,bcFalse);
-			printf("10\n");			
-			e = env_push(e,bcTemp);	
+			*s++ = bcFalse;
 			printf("11\n");								
 			break;
         }
 
 		case IFSTOP: {
-			value cond = e->v;
-			e = e->next;
-			value temp = e->v;
-			e = e->next;
-			value bcFalse = e->v;
-			e = e->next;
-			value bcTrue = e->v;
-			e = e->next;
-			--*c;
-			*c = temp.i;
+			printf("a\n");
+			value cond = *s--;
+			printf("b\n");			
+			printf("c\n");
+			value bcFalse = *s--;									
+			value bcTrue = *s--;			
+			printf("d\n");			
+			printf("e\n");
+			printf("temp2 %d\n",temp.i);			
+			printf("f\n");
 			int c2 = bcTrue.i;			
+			printf("g\n");
 			int c3 = bcFalse.i;
-			e = bcTrue.clo.clo_env;							
+			printf("h\n");
+			e = bcTrue.clo.clo_env;										
+			printf("i\n");
 			if(cond.i == 0){				
 				c[c2] = JUMP;
 				c[c2+1] = c3;				
