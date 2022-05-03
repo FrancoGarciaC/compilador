@@ -290,64 +290,23 @@ void run(code init_c)
 		}
 */
 		case IFZ: {
-			printf("0\n");
-			int c1 = *c++;
-			printf("0\n");
-			int c2 = *c++;
-			printf("0\n");
-			int c3 = *c++;
-			printf("0\n");
-			printf("c1:%d\n",c1);
-			printf("c2:%d\n",c2);
-			printf("c3:%d\n",c3);
-
-			value bcTrue;
-			value bcFalse;
-
-			struct clo clos = { .clo_env = e, .clo_body = c };
-			printf("3\n");			
-			bcTrue.clo = clos;
-			printf("4\n");			
-			bcTrue.i = c2;
-			printf("5\n");			
-			struct clo clos2 = { .clo_env = e, .clo_body = c };
-			printf("6\n");			
-			bcFalse.clo = clos2;
-			printf("7\n");			
-			bcFalse.i = c3;
-			printf("8\n");			
-			*s++ = bcTrue;
-			printf("9\n");			
-			*s++ = bcFalse;
-			printf("11\n");								
+			value ctos;
+			ctos.i = *c++;						
+			value env;			
+			struct clo clos = { .clo_env = e, .clo_body = NULL };
+			env.clo = clos;
+			*s++ = ctos;
+			*s++ = env;
 			break;
         }
 
 		case IFSTOP: {
-			printf("a\n");
-			value cond = *s--;
-			printf("b\n");			
-			printf("c\n");
-			value bcFalse = *s--;									
-			value bcTrue = *s--;			
-			printf("d\n");			
-			printf("e\n");
-			printf("temp2 %d\n",temp.i);			
-			printf("f\n");
-			int c2 = bcTrue.i;			
-			printf("g\n");
-			int c3 = bcFalse.i;
-			printf("h\n");
-			e = bcTrue.clo.clo_env;										
-			printf("i\n");
-			if(cond.i == 0){				
-				c[c2] = JUMP;
-				c[c2+1] = c3;				
-			}
-			else{
-				*c = JUMP; 
-				c[1] = c2;
-			}
+			value cond = *--s;	
+			e = (*--s).clo.clo_env;
+			int ctos = (*--s).i;
+			if(cond.i != 0){				
+				c += ctos;			
+			}			
 			break;
 		}
         
@@ -421,13 +380,13 @@ void run(code init_c)
 			break;
 		}
 
-		case PRINTN: {
+		case PRINTN: {			
 			uint32_t i = s[-1].i;
 			wprintf(L"%" PRIu32 "\n", i);
 			break;
 		}
 
-		case PRINT: {
+		case PRINT: {			
 		  	while(*c) {
 		   		wchar_t x = *c++;
 		   		putwchar(x);
