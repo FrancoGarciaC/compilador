@@ -69,8 +69,9 @@ pattern SHIFT    = 11
 pattern DROP     = 12
 pattern PRINT    = 13
 pattern PRINTN   = 14
-pattern IFSTOP   = 17
-pattern JUMP = 18
+pattern JUMP = 15
+pattern IFSTOP   = 16
+
 
 
 bc :: MonadFD4 m => Term -> m Bytecode
