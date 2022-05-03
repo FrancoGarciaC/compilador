@@ -70,6 +70,7 @@ pattern DROP     = 12
 pattern PRINT    = 13
 pattern PRINTN   = 14
 pattern IFSTOP   = 17
+pattern JUMP = 18
 
 
 bc :: MonadFD4 m => Term -> m Bytecode
@@ -101,7 +102,7 @@ bc (IfZ _ z t1 t2) = do printFD4 "Estoy en IfZ"
                         bcz <- bc z
                         bc1 <- bc t1
                         bc2 <- bc t2
-                        return $ [IFZ,length bcz +1,length bc1,length bc2] ++ bcz ++ [IFSTOP] ++ bc1 ++ bc2
+                        return $ [IFZ,length bc1 + 2] ++ bcz ++ [IFSTOP] ++ bc1 ++ [JUMP,length bc2] ++ bc2
 
 bc (Let _ _ ty t1 t2) = do printFD4 "Estoy en Let"
                            bc1 <- bc t1
@@ -193,19 +194,16 @@ runBC' (CALL:c) e (v:Fun ef cf :s)  = do printFD4 "Estoy en CALL"
                                          printFD4 $ "Con valor " ++ show v
                                          runBC' cf (v:ef) (RA e c:s)
 
-runBC' (IFZ:ctosZ:ctosA:ctosB:c) e s  =
-          do printFD4 "Estoy en IFZ"
-             let c' = drop (ctosZ+ctosA+ctosB) c
-             let bc1 = take ctosA (drop ctosZ c) ++ c'
-             let bc2 = drop (ctosZ+ctosA) c
-             runBC' c e (RA e bc1:RA e bc2:s)
+runBC' (IFZ:ctos:c) e s  =
+          do printFD4 "Estoy en IFZ"             
+             runBC' c e (RA e []:I ctos:s)
 
-runBC' (IFSTOP:_) e (I c:RA e1 bc1:RA e2 bc2:s) | c == 0 = do printFD4 "Estoy en caso = 0"
-                                                              printFD4 $ "BC "++show bc1                                        
-                                                              runBC' bc1 e1 s
-                                                | otherwise = do printFD4 $ "Estoy en caso != 0 "++show c
-                                                                 printFD4 $ "BC2 "++show bc2                                        
-                                                                 runBC' bc2 e2 s
+runBC' (IFSTOP:c) _ (I k:RA e _:I ctos:s) | k == 0 = do printFD4 "Estoy en caso = 0"
+                                                        runBC' c e s
+                                          | otherwise = do printFD4 $ "Estoy en caso != 0 "++show c                                                                                                  
+                                                           runBC' (drop ctos c) e s
+
+runBC' (JUMP:n:c) e s = runBC' (drop n c) e s                                                           
 
 runBC' (FUNCTION:ctos:c) e s = do printFD4 "Estoy en FUNCTION"
                                   runBC' (drop ctos c) e (Fun e c:s)
