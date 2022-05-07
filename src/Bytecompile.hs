@@ -75,19 +75,51 @@ pattern IFSTOP   = 17
 
 
 
+tailCallOpt :: MonadFD4 m => Term -> m Bytecode
+
+tailCallOpt (App _ t1 t2) = do printFD4 "tc app"
+                               bcT1 <- bc t1
+                               bcT2 <- bc t2
+                               return $ bcT1 ++ bcT2 ++ [TAILCALL]
+
+tailCallOpt (IfZ _ z t1 t2) = do printFD4 "tc IfZ"
+                                 bcz <- bc z
+                                 printFD4 $ show t1
+                                 printFD4 $ show t2
+                                 tc1 <- tailCallOpt t1
+                                 tc2 <- tailCallOpt t2
+                                 return $ [IFZ,length tc1 + 2] ++ bcz ++ [IFSTOP] ++ tc1 ++ [JUMP,length tc2] ++ tc2                            
+
+tailCallOpt (Let _ _ ty m n) = do printFD4 "tc Let"
+                                  bcM <- bc m
+                                  tcN <- tailCallOpt n
+                                  return $ bcM ++ [SHIFT] ++ tcN
+
+tailCallOpt t = do bcT <- bc t                                     
+                   return $ bcT ++ [RETURN]
+
+
 bc :: MonadFD4 m => Term -> m Bytecode
 bc (V _ (Bound i)) = do printFD4 "Estoy en V"
                         return [ACCESS,i]
 bc (Const _ (CNat n)) = do printFD4 "Estoy en Const"
                            return [CONST,n]
+
 bc (Lam _ n ty t) = do printFD4 "Estoy en Lam"
-                       bcode <- bc t
-                       return $ [FUNCTION,length bcode +1]++bcode++[RETURN]
+                       bt <- tailCallOpt t
+                       return $ [FUNCTION,length bt] ++ bt
+
+
+-- bc (Lam _ n ty t) = do printFD4 "Estoy en Lam"
+--                        bcode <- bc t
+--                        return $ [FUNCTION,length bcode +1]++bcode++[RETURN]
 
 bc (App _ t1 t2) =  do printFD4 "Estoy en App"
                        bc1 <- bc t1
                        bc2 <- bc t2
                        return $ bc1++bc2++[CALL]
+
+
 bc (Print _ s t) = do printFD4 "Estoy en Print"
                       t' <- bc t
                       return $ [PRINT] ++ map ord s ++ [NULL] ++ t' ++ [PRINTN]

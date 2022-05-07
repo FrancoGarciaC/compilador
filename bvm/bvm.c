@@ -285,10 +285,16 @@ void run(code init_c)
 			break;
 		}
 
-/*
+
 		case TAILCALL: {
+			value arg = *--s;
+			value funEnv = *--s;			
+			e = funEnv.clo.clo_env;
+			e = env_push(e,arg);
+			c = funEnv.clo.clo_body;
+			break;
 		}
-*/
+
 		case IFZ: {
 			value ctos;
 			ctos.i = *c++;						

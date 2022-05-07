@@ -1,4 +1,4 @@
 let prog ( x:Nat ) : Nat = print "x:=" x
-let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else (suma m (n-1))+1
-let rec resta (m:Nat) (n:Nat) : Nat = ifz n then m else (resta m (n-1))-1
-let p : Nat = prog (suma 15 10)
+let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else suma (m+1) (n-1)
+let rec resta (m:Nat) (n:Nat) : Nat = ifz n then m else resta (m-1) (n-1)
+let p : Nat = prog (resta 3000000 2999998)
