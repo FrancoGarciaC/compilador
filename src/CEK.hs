@@ -72,7 +72,6 @@ semOp :: BinaryOp -> Int -> Int -> Int
 semOp Add x y=  x + y
 semOp Sub x y = max 0 (x - y)
 
-
 fromValtoTerm :: Val -> Term
 fromValtoTerm (N n) = Const NoPos (CNat n)
 fromValtoTerm (Clos q) = fromClostoTerm q
