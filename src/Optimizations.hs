@@ -2,20 +2,6 @@ module Optimizations where
 
 import Subst ( substN, subst )
 
-data Tm info var =
-    V info var
-  | Const info Const
-  | Lam info Name Ty (Tm info var)
-  | App info (Tm info var) (Tm info var)
-  | Print info String (Tm info var)
-  | BinaryOp info BinaryOp (Tm info var) (Tm info var)
-  | Fix info Name Ty Name Ty (Tm info var)
-  | IfZ info (Tm info var) (Tm info var) (Tm info var)
-  | Let info Name Ty (Tm info var)  (Tm info var)
-  
-  deriving (Show, Functor)
-
-
 constantFolding:: Monad m => Term -> m (Term,Bool)
 
 constantFolding t@(V i v) = return $ (t,False)

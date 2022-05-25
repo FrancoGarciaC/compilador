@@ -180,7 +180,9 @@ typecheckFile ::  MonadFD4 m => Bool -> FilePath -> m ()
 typecheckFile opt f = do
     printFD4  ("Chequeando "++f)
     decls <- loadFile f
-    ppterms <- mapM (typecheckDecl >=> ppDecl) decls
+    ppterms <- mapM (typecheckDecl opt >=> ppDecl) decls
+    ppterms' <- if opt then optimizer ppterms
+                else return ppterms 
     mapM_ printFD4 ppterms
 
 parseIO ::  MonadFD4 m => String -> P a -> String -> m a
@@ -191,18 +193,20 @@ parseIO filename p x = case runP p x filename of
 -- 
 
 
-typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Decl Term)
-typecheckDecl decl = do
+typecheckDecl :: MonadFD4 m => Bool -> SDecl STerm -> m (Decl Term)
+typecheckDecl opt decl = do
         let  (Decl _ _ t) = desugar decl
              p = sdeclPos decl
              x = sdeclName decl
-             dd = (Decl p x (elab t))
+        t <- if opt then optimizer $ elab t
+             else return $ elab t 
+        let dd = (Decl p x (elab t))
         tcDecl dd
         return dd
 
 bytecompileFile :: MonadFD4 m => FilePath -> m ()
 bytecompileFile filePath = do ds <- loadFile filePath
-                              ds' <- mapM typecheckDecl ds
+                              ds' <- mapM typecheckDecl False ds
                               bc <- bytecompileModule ds'                              
                               case endBy ".fd4" filePath of 
                                 [path] -> liftIO $ bcWrite bc $ path ++ ".byte"
@@ -222,7 +226,7 @@ handleDecl t d@SDecl {} = do
         let (args,typs) = unzip $ sdeclArgs d
         typs' <- mapM checkSinType typs
         let d' = d {sdeclArgs =zip args typs'} { sdeclType = ty'}
-        (Decl p x tt) <- typecheckDecl d'
+        (Decl p x tt) <- typecheckDecl False d'
         te <- runEval t tt
         addDecl (Decl p x te)
 handleDecl _ d@SType {} = do
@@ -326,7 +330,8 @@ handleTerm e term = do
          let tt = elab t
          s <- get
          ty <- tc tt (tyEnv s)
-         te <- runEval e tt
+         tt' <- optimizer tt
+         te <- runEval e tt'
          ppte <- pp te
          printFD4 (ppte ++ " : " ++ ppTy ty)
 
@@ -348,8 +353,8 @@ typeCheckPhrase x = do
          t <- parseIO "<interactive>" stm x
          e <- getSinTypEnv
          let tt = elab (desugar' t)
-         s <- get
-         ty <- tc tt (tyEnv s)
+         s <- get         
+         ty <- tc tt (tyEnv s)        
          printFD4 (ppTy ty)
 
 
