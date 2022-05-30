@@ -38,6 +38,8 @@ dependencies:
 - text
 - process
 - split
+- containers
+- cryptohash
 
 
 library:

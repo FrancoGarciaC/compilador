@@ -1,0 +1,3 @@
+let prog ( x:Nat ) : Nat = print "x:=" x
+let t : Nat = let x : Nat =  in let y : Nat = 3 in let z : Nat = 4 in x+y+z
+let p : Nat = prog t
