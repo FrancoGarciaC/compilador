@@ -1,4 +1,4 @@
-module Encoding (termHash) where
+module Encoding (hashTerm) where
 
 import Data.ByteString 
 import qualified Data.Text as T
@@ -11,5 +11,5 @@ packStr = encodeUtf8 . T.pack
 
 
 
-termHash :: Term -> ByteString
-termHash t = hash $ packStr $ show t
+hashTerm :: Term -> ByteString
+hashTerm t = hash $ packStr $ show t
