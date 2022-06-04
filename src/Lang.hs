@@ -124,6 +124,20 @@ getInfo (IfZ i _ _ _     ) = i
 getInfo (Let i _ _ _ _   ) = i
 getInfo (BinaryOp i _ _ _) = i
 
+-- | Setear la info en la raíz del término recursivamente
+setInfo :: Tm info var -> info -> Tm info var
+setInfo (V  i v ) i2 = V  i2 v
+setInfo (Const i c) i2 = Const i2 c
+setInfo (Lam i n ty t) i2 = Lam i2 n ty (setInfo t i2)
+setInfo (App   i t1 t2) i2 = App  i2 (setInfo t1 i2) (setInfo t2 i2)
+setInfo (Print i s t) i2 = Print i2 s (setInfo t i2)
+setInfo (Fix i n1 ty1 n2 ty2 t) i2 = Fix i2 n1 ty1 n2 ty2 (setInfo t i2)
+setInfo (IfZ i tz tt tf) i2 = IfZ i2 (setInfo tz i2) (setInfo tt i2) (setInfo tf i2)
+setInfo (Let i n ty t1 t2) i2 = Let i2 n ty (setInfo t1 i2) (setInfo t2 i2)
+setInfo (BinaryOp i op t1 t2) i2 = BinaryOp i2 op (setInfo t1 i2) (setInfo t2 i2)
+
+
+
 
 
 -- | Obtiene la info en la raíz del término.
@@ -137,6 +151,8 @@ sgetInfo (SFix i _ _ _ _ ) = i
 sgetInfo (SIfZ i _ _ _     ) = i
 sgetInfo (SLet i _ _ _ _ _ _) = i
 sgetInfo (SBinaryOp i _ _ _) = i
+
+
 
 
 -- | Obtiene los nombres de variables (abiertas o globales) de un término.

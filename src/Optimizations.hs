@@ -5,7 +5,7 @@ import Lang
 import MonadFD4
 import Eval (semOp)
 import qualified Data.Map as Map
-import Data.ByteString hiding(map, unzip)
+import Data.ByteString hiding(map, unzip, null)
 import Data.List 
 import Encoding
 import Common 
@@ -108,15 +108,17 @@ constantPropagation tt@(Let i n ty t1 t2) = do
 
 optimizer::MonadFD4 m => Term -> m Term
 optimizer t = do printFD4 $ "Optimizando"
-                 (t1,change1) <- constantPropagation t 
+                 {- (t1,change1) <- constantPropagation t 
                  printFD4 $ show t1
-                 (t2,change2) <- constantFolding t1                                  
-                 if change1 || change2 then optimizer t2
-                 else return t2
+                 (t2,change2) <- constantFolding t1 -}     
+                 (t3,change) <-  commonSubexpression t                          
+                 -- if change1 || change2 then optimizer t2
+                 printFD4 $ show t3
+                 if change then optimizer t3
+                 else return t3
 
 optDeclaration :: MonadFD4 m => Bool -> Decl Term -> m (Decl Term)
 optDeclaration opt (Decl p x t) = do     
-        printFD4 $ "term:" ++ show t
         t'  <- if opt then optimizer t
                else return t 
         return $ Decl p x t' 
@@ -144,19 +146,24 @@ type Depth = Int
 type SubExpMap = Map.Map ByteString (Term,Int,Depth)
 type TermMap = Map.Map ByteString Term
 
-commonSubexpression :: MonadFD4 m => Term -> m Term
+commonSubexpression :: MonadFD4 m => Term -> m (Term,Bool)
 commonSubexpression t = do tm <- findcommonSubexp t Map.empty 0
-                           let tm1 = Map.filter (\(_,n,_) -> n <= 1) tm
-                               tm2 = Map.map (\(tt,_,_) -> tt) tm1
-                           (t',tm3) <- factorizer t tm2   
-                           let ls = Map.toList tm3
-                               ls' = sortBy (\(k1,_) -> \(k2,_) -> let (_,_,d1) = tm1 Map.! k1 
-                                                                       (_,_,d2) = tm1 Map.! k2
+                           let tm1 = Map.filter (\(_,n,_) -> n > 1) tm
+                           (t',tm2) <- factorizer t tm1                            
+                           printFD4 "aaa"
+                           let ls = Map.toList tm2    
+                           printFD4 $ show ls
+                           let ls' = sortBy (\(k1,_) -> \(k2,_) -> let (_,_,d1) = case  Map.lookup k1 tm1 of 
+                                                                                    Just x -> x 
+                                                                                    _ -> error $ show k1
+                                                                       (_,_,d2) = case  Map.lookup k2 tm1 of 
+                                                                                    Just x -> x 
+                                                                                    _ -> error "bbb"
                                                                    in compare d1 d2)  
-                                            ls                               
-                               ls'' = map (\(k,t) -> (show k,t)) ls'
-                               (names,_) = unzip ls''
-                           return $ closeN names $ wrapperLet t' ls''                                       
+                                            ls                              
+                               ls'' = map (\(k,(t,_,_)) -> (show k,t)) ls'
+                               (names,_) = unzip ls''                           
+                           return (wrapperLet (closeN names t') ls'', not $ null names)                                        
 
 
 
@@ -165,7 +172,6 @@ commonSubexpression t = do tm <- findcommonSubexp t Map.empty 0
 -- commonSubexpression t = do m <- commonSubexpression' t Map.empty
 --                            let vals = elems m 
 --                            commonSubexpression'' t vals
-
 
 {-
 Cuenta cuantas veces una subexpresion se repite y no las cuenta si tienen efectos laterales
@@ -193,11 +199,11 @@ findcommonSubexp t@(App i t1 t2) tm n = do
 findcommonSubexp t@(BinaryOp i bo t1 t2) tm n = do
        tm' <- findcommonSubexp t1 tm (n+1)
        let h1 = hashTerm t1
-       if not $ Map.member h1 tm' then return tm
+       if not (Map.member h1 tm') && not (varOrConst t1)  then return tm
        else do tm'' <- findcommonSubexp t2 tm' (n+1)
                let h2 = hashTerm t2
-               if not $ Map.member h2 tm'' then return tm
-               else countSubexp t tm'' n       
+               if not (Map.member h2 tm'') && not (varOrConst t2) then return tm
+               else countSubexp t tm'' n                              
 
 findcommonSubexp t@(IfZ i tz tt tf) tm n = do
         tm' <- findcommonSubexp tz tm (n+1)
@@ -227,18 +233,11 @@ countSubexp t tm depth = return $  let h = hashTerm t in
                                        Just (_,n,_) -> Map.insert h (t,n+1,depth) tm
 
 
--- commonSubexpression'' :: MonadFD4 m => Term -> [(Term,Int)]
--- commonSubexpression'' t [] = t                            
--- commonSubexpression'' t (n,t'):xs = if n == 1 then commonSubexpression'' t xs
---                                     else 
-
-
 {- 
-Reemplazar terminos que suceden varias veces por variables libres
+Reemplazar expresiones que suceden varias veces por variables libres
 -}
 
--- filtrar terminos con más de una aparicion y si tienen efectos laterales, unzipear cantidades y terminos
-factorizer :: MonadFD4 m => Term -> TermMap -> m (Term,TermMap)
+factorizer :: MonadFD4 m => Term -> SubExpMap -> m (Term,SubExpMap)
 
 factorizer t@(V _ _) tm =  return (t,tm) 
 
@@ -253,8 +252,9 @@ factorizer t@(App i t1 t2) tm = do let h = hashTerm t
                                    (t2',tm'') <- factorizer t2 tm'
                                    let app = App i t1' t2'
                                    case Map.lookup h tm of 
-                                          Nothing -> return (app,Map.insert h app tm'')
+                                          Nothing -> return (app,semInsert h app tm'')
                                           _ -> return (V i (Free $ show h),tm'')
+
 
 factorizer t@(Print i s t1) tm = do let h = hashTerm t
                                     (t1',tm') <- factorizer t1 tm
@@ -265,10 +265,11 @@ factorizer t@(BinaryOp i bo t1 t2) tm = do
        let h = hashTerm t
        (t1',tm') <- factorizer t1 tm
        (t2',tm'') <- factorizer t2 tm'       
-       let app = App i t1' t2'
+       let bot = BinaryOp i bo t1' t2'
+       printFD4 $ show bot
        case Map.lookup h tm of 
-              Nothing -> return (app,Map.insert h app tm'')
-              _ -> return (V i (Free $ show h),tm'')
+              Nothing -> return (bot,tm'')
+              _ -> return (V i (Free $ show h),semInsert h bot tm'')
               
 factorizer t@(IfZ i tz tt tf) tm = do let h = hashTerm t
                                       (tz',tm') <- factorizer tz tm
@@ -276,7 +277,7 @@ factorizer t@(IfZ i tz tt tf) tm = do let h = hashTerm t
                                       (tf',tm''') <- factorizer tf tm''
                                       let ifz = IfZ i tz' tt' tf'
                                       case Map.lookup h tm of
-                                              Nothing -> return (ifz,Map.insert h ifz tm''')
+                                              Nothing -> return (ifz,semInsert h ifz tm''')
                                               _ -> return (V i (Free $ show h),tm''')
                                    
 factorizer  t@(Let i n ty t1 t2) tm = do 
@@ -286,7 +287,7 @@ factorizer  t@(Let i n ty t1 t2) tm = do
        let t' = Let i n ty t1' t2'
        case Map.lookup h tm of 
               Nothing -> return (t',tm')
-              _ -> return (V i (Free $ show h), Map.insert h t' tm'')                                   
+              _ -> return (V i (Free $ show h), semInsert h t' tm'')                                   
 
 factorizer t@(Fix i n1 ty1 n2 ty2 t1) tm = do
        (t1',tm') <- factorizer t1 tm
@@ -306,3 +307,17 @@ wrapperLet t ((v,trm):xs) = let t' = Let (Pos 0 0) v NatTy trm t
                             in wrapperLet t' xs
 
 
+
+varOrConst :: Term -> Bool
+varOrConst (V _ _) = True
+varOrConst (Const _ _) = True
+varOrConst _ = False
+
+
+
+semInsert ::  ByteString -> Term -> SubExpMap -> SubExpMap
+semInsert h t m = let (_,n,d) = case Map.lookup h m of 
+                                   Just x -> x
+                                   _ -> error $ show t
+                    
+                  in Map.insert h (t,n,d) m
