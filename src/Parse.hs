@@ -260,11 +260,6 @@ sdeclOrSintype :: ParsecT String () Identity (SDecl STerm)
 sdeclOrSintype = try (sdecl <|> sintype)
 
 
-
-
-
-
-
 -- Corre un parser, chequeando que se pueda consumir toda la entrada
 runP :: P a -> String -> String -> Either ParseError a
 runP p s filename = runParser (whiteSpace *> p <* eof) () filename s

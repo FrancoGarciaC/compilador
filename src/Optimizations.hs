@@ -30,13 +30,11 @@ constantFolding (App i t1 t2) = do (t1',change1) <- constantFolding t1
 constantFolding (BinaryOp i op t1 t2) = do (t1',change1) <- constantFolding t1                                                                 
                                            (t2',change2) <- constantFolding t2
                                            case (t1',t2') of 
-                                                 (Const _ (CNat n), Const _ (CNat m)) -> do printFD4 "1" 
-                                                                                            return $ (Const i (CNat (semOp op n m)),True)
+                                                 (Const _ (CNat n), Const _ (CNat m)) -> return $ (Const i (CNat (semOp op n m)),True)
         
                                                  
-                                                 (V _  x, Const _ (CNat n)) -> do printFD4 "2" 
-                                                                                  return $ if n == 0 then (V i x,True) 
-                                                                                           else (BinaryOp i op t1' t2',change1 || change2)                                             
+                                                 (V _  x, Const _ (CNat n)) -> return $ if n == 0 then (V i x,True) 
+                                                                                        else (BinaryOp i op t1' t2',change1 || change2)                                             
 
                                                  (Const _ (CNat n),V _  x) ->  do printFD4 "3" 
                                                                                   return $ if n == 0 then (V i x,True) 
@@ -50,9 +48,7 @@ constantFolding (Fix i n1 t1 n2 t2 t) = do (t',change) <- constantFolding t
                                            return (Fix i n1 t1 n2 t2 t',change)                                                                 
                                              
 constantFolding (IfZ i c t1 t2) = do 
-                                     printFD4 "aca entra"
                                      (c',change1) <- constantFolding c
-                                     printFD4 $ show c'
                                      case c' of 
                                             (Const _ (CNat n)) -> do printFD4 "4"
                                                                      if n == 0 then do (t1',change2) <- constantFolding t1
@@ -100,22 +96,22 @@ constantPropagation (IfZ i c t1 t2) = do (c',change1) <- constantPropagation c
 constantPropagation tt@(Let i n ty t1 t2) = do 
                                                (t1', change1) <- constantPropagation t1
                                                case t1' of
-                                                   (Const _ (CNat n')) -> do printFD4 $ show t1'
-                                                                             (t2',change2) <- constantPropagation $ subst t1' t2
+                                                   (Const _ (CNat n')) -> do (t2',change2) <- constantPropagation $ subst t1' t2
                                                                              return  (t2', True)
                                                    
                                                    _ -> return (Let i n ty t1' t2, change1)
 
 optimizer::MonadFD4 m => Term -> m Term
-optimizer t = do printFD4 $ "Optimizando"
+optimizer t = do printFD4 "Optimizando"
                  {- (t1,change1) <- constantPropagation t 
                  printFD4 $ show t1
                  (t2,change2) <- constantFolding t1 -}     
                  (t3,change) <-  commonSubexpression t                          
                  -- if change1 || change2 then optimizer t2
                  printFD4 $ show t3
-                 if change then optimizer t3
-                 else return t3
+                 -- if change then optimizer t3
+                 --else return t3
+                 return t3
 
 optDeclaration :: MonadFD4 m => Bool -> Decl Term -> m (Decl Term)
 optDeclaration opt (Decl p x t) = do     
@@ -148,11 +144,10 @@ type TermMap = Map.Map ByteString Term
 
 commonSubexpression :: MonadFD4 m => Term -> m (Term,Bool)
 commonSubexpression t = do tm <- findcommonSubexp t Map.empty 0
+                           printFD4 $ show tm
                            let tm1 = Map.filter (\(_,n,_) -> n > 1) tm
-                           (t',tm2) <- factorizer t tm1                            
-                           printFD4 "aaa"
+                           (t',tm2) <- factorizer t tm1
                            let ls = Map.toList tm2    
-                           printFD4 $ show ls
                            let ls' = sortBy (\(k1,_) -> \(k2,_) -> let (_,_,d1) = case  Map.lookup k1 tm1 of 
                                                                                     Just x -> x 
                                                                                     _ -> error $ show k1
@@ -183,6 +178,11 @@ findcommonSubexp t@(Const i c) tm _ = return tm
 
 findcommonSubexp (Lam _ _ _ t) tm n = findcommonSubexp t tm (n+1)
 
+
+{-
+ resolver porque App no se está incluyendo en el map
+ observamos que Var y Free tampoco se incluyen
+-}
 findcommonSubexp t@(App i t1 t2) tm n = do       
        tm' <- findcommonSubexp t1 tm (n+1)
        let h1 = hashTerm t1
@@ -226,6 +226,9 @@ findcommonSubexp (Print _ _ t) tm n = findcommonSubexp t tm (n+1)
 
 findcommonSubexp (Fix _ _ _ _ _ t) tm n = findcommonSubexp t tm (n+1)
 
+findcommonSubexp (Let _ _ _ t1  t2) tm n = do tm1 <- findcommonSubexp t1 tm (n+1)
+                                              findcommonSubexp t2 tm1 (n+1)
+
 countSubexp :: MonadFD4 m => Term -> SubExpMap -> Depth -> m SubExpMap
 countSubexp t tm depth = return $  let h = hashTerm t in
                                    case Map.lookup h tm of 
@@ -266,7 +269,6 @@ factorizer t@(BinaryOp i bo t1 t2) tm = do
        (t1',tm') <- factorizer t1 tm
        (t2',tm'') <- factorizer t2 tm'       
        let bot = BinaryOp i bo t1' t2'
-       printFD4 $ show bot
        case Map.lookup h tm of 
               Nothing -> return (bot,tm'')
               _ -> return (V i (Free $ show h),semInsert h bot tm'')
@@ -283,7 +285,7 @@ factorizer t@(IfZ i tz tt tf) tm = do let h = hashTerm t
 factorizer  t@(Let i n ty t1 t2) tm = do 
        let h = hashTerm t 
        (t1',tm') <- factorizer t1 tm
-       (t2',tm'') <- factorizer t1 tm'
+       (t2',tm'') <- factorizer t2 tm'
        let t' = Let i n ty t1' t2'
        case Map.lookup h tm of 
               Nothing -> return (t',tm')
