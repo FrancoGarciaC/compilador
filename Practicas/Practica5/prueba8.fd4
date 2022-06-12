@@ -1,0 +1,6 @@
+let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else suma (m+1) (n-1)
+let y : Nat = let m : Nat = suma 3 4 in
+              let n : Nat = suma 3 4 in
+              suma m n
+              
+

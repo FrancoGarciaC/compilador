@@ -1,0 +1,5 @@
+let t3 : Nat = let y : Nat = 3+7+2+3 in
+               let z : Nat = 3+7+2+3 in 
+               let a : Nat = 3+7 in
+               y + z + a
+
