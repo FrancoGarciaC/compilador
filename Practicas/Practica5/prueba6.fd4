@@ -1,5 +1,4 @@
-let app (x:Nat) : Nat = x + 2
-let t3 : Nat = let y : Nat = app 5 in 
-               let z : Nat = app 5 in 
+let t3 : Nat = let y : Nat = print "x=" (3+4) in 
+               let z : Nat = print "x=" (3+4) in 
                y + z
 
