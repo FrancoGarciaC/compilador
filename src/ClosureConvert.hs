@@ -97,13 +97,22 @@ countArgs _ xs = xs
 closureConvert (Lam _ n _ t2) = do 
 
 
-let f =  
-       let g  in ..
-in g a
 
 
+suma 3 4 = (suma 3) 4
 
-closureConvert (App _ (V _ v) t) = do 
+closureConvert (App _ t1 t2) = do 
+      
 
 
+closureConvert' (App _ (V _ (Bound n)) t) n = do 
+      decls <- get
+      let decl = decl !! n
+      let ctosArgs = length $ irDeclArgNames decl
+      if n == ctosArgs then IrCall Ir [Ir]
+      else  MkClosure (irDeclName decl) [Ir]
+      
 
+closureConvert' (App _ t1  t2) xs = do 
+      ir2 <- closureConvert' t2
+      closureConvert' t1 (ir2:xs)  
