@@ -42,7 +42,7 @@ import System.IO.Extra (FilePath)
 import Bytecompile 
 import MonadFD4 (failFD4, MonadFD4)
 import Optimizations
-import IR(IrDecl)
+import IR(IrDecl,irDeclName,irDeclArgNames,Ir(..))
 import ClosureConvert(closureConvert)
 import Control.Monad.Writer.Lazy
 
@@ -377,7 +377,15 @@ ccFile filePath = do
   
 
 fromStateToList :: Decl Term -> [IrDecl]
-fromStateToList d = let clo = closureConvert (declBody d) (declName d) []                        
+fromStateToList d = let dName = declName d
+                        clo = closureConvert (declBody d) dName []                        
                         ((t,_),decls) = runWriter $ runStateT clo 0
-                    in error $ "El t es esto " ++ show t ++ " y decls " ++ show decls
+                    in case t of 
+                          MkClosure _ _ -> map (\d -> modifiedDecl d dName) decls
+                          _ -> error "ahora vemos"
+
+  where modifiedDecl d declName = 
+          if irDeclName d == "__" ++ declName ++ "0" then d {irDeclName = declName, irDeclArgNames = tail $ irDeclArgNames d}
+          else d
+
 

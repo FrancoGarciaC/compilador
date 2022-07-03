@@ -76,7 +76,7 @@ closureConvert (IfZ _ tz tt tf) f xs = do
       return $ IrIfZ ir1 ir2 ir3 
 
 closureConvert (Let _ x _ t1  t2) f xs = do
-      let tt = open x t2
+      let tt = open x t2      
       ir1 <- closureConvert t1 f xs
       ir2 <- closureConvert tt f (x:xs)
       return $ IrLet x ir1 ir2
