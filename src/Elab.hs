@@ -101,12 +101,13 @@ desugar' (SFix i f tr [(n,ty)] t) = Fix i f tr n ty (desugar' t)
 desugar' (SFix i f tr ((n,ty):ns) t ) = let fun = Slam i ns t
                               in error $ show tr
 desugar' (SIfZ i c tt tf) = IfZ i (desugar' c) (desugar' tt) (desugar' tf)
-desugar' (SLet i rec n ls t stmDef stmBody) =
+desugar' q@(SLet i rec n ls t stmDef stmBody) =
        let def = desugar' stmDef
            body = desugar' stmBody
        in case ls of
             [] -> Let i n  t def body
-            _ -> if not rec then Let i n (FunTy (buildType ls) t) def body
+            _ -> if not rec then let fun = Slam i ls stmDef
+                                 in Let i n (FunTy (buildType ls) t) (desugar' fun) body
                  else case ls of
                          [(a,ta)] ->let fix= Fix i n t a ta def
                                     in Let i n (FunTy ta t) fix body

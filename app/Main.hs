@@ -42,6 +42,10 @@ import System.IO.Extra (FilePath)
 import Bytecompile 
 import MonadFD4 (failFD4, MonadFD4)
 import Optimizations
+import IR(IrDecl)
+import ClosureConvert(closureConvert)
+import Control.Monad.Writer.Lazy
+
 
 
 prompt :: String
@@ -56,7 +60,7 @@ data Mode =
   | InteractiveCEK
   | Bytecompile
   | RunVM
-  -- | CC
+  | CC
   -- | Canon
   -- | LLVM
   -- | Build
@@ -69,7 +73,7 @@ parseMode = (,) <$>
       <|> flag' Bytecompile (long "bytecompile" <> short 'm' <> help "Compilar a la BVM")
       <|> flag' RunVM (long "runVM" <> short 'r' <> help "Ejecutar bytecode en la BVM")
       <|> flag Interactive Interactive ( long "interactive" <> short 'i' <> help "Ejecutar en forma interactiva")
-  -- <|> flag' CC ( long "cc" <> short 'c' <> help "Compilar a código C")
+      <|> flag' CC ( long "cc" <> short 'c' <> help "Compilar a código C")
   -- <|> flag' Canon ( long "canon" <> short 'n' <> help "Imprimir canonicalización")
   -- <|> flag' LLVM ( long "llvm" <> short 'l' <> help "Imprimir LLVM resultante")
   -- <|> flag' Build ( long "build" <> short 'b' <> help "Compilar")
@@ -110,8 +114,8 @@ main = execParser opts >>= go
                runOrFail $ mapM_ bytecompileFile files
     go (RunVM,_,files) =
                runOrFail $ mapM_ bytecodeRun files
-    -- go (CC,_, files) =
-    --           runOrFail $ mapM_ ccFile files
+    go (CC,_, files) =
+               runOrFail $ mapM_ ccFile files
     -- go (Canon,_, files) =
     --           runOrFail $ mapM_ canonFile files 
     -- go (LLVM,_, files) =
@@ -360,4 +364,20 @@ runEval :: MonadFD4 m => TypeEval -> Term -> m Term
 runEval NEval t = eval t
 runEval CEKEval t = do  d <- search t [] []
                         return $ fromValtoTerm d
+
+ccFile :: MonadFD4 m => FilePath -> m()
+ccFile filePath = do 
+  case endBy ".fd4" filePath of 
+    [path] -> do ds <- loadFile filePath
+                 ds' <- mapM typecheckDecl ds                
+                 let decls = concat $ mapM (\d ->  fromStateToList d) ds'                         
+                 printFD4 $ show decls
+    _ -> failFD4 "Error: el archivo debe tener extension .fd4" 
+   
+  
+
+fromStateToList :: Decl Term -> [IrDecl]
+fromStateToList d = let clo = closureConvert (declBody d) (declName d) []                        
+                        ((t,_),decls) = runWriter $ runStateT clo 0
+                    in error $ "El t es esto " ++ show t ++ " y decls " ++ show decls
 

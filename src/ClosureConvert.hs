@@ -4,6 +4,7 @@ import IR
 import Lang
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Writer.Lazy
+import Subst(open)
 
 
 
@@ -53,66 +54,75 @@ suma5 (x){
 
 -}
 
+type ClosureState a = StateT Int (Writer [IrDecl]) a
 
-closureConvert :: Term -> StateT Int (Writer [IrDecl]) Ir
+closureConvert :: Term -> String -> [Name] -> ClosureState Ir
 
- 
-closureConvert (BinaryOp _ op t1 t2) = do 
-      ir1 <- closureConvert t1 
-      ir2 <- closureConvert t2
+closureConvert (V _ v) f xs = 
+      case v of 
+            (Global s) -> return $ IrGlobal s
+            (Free s) -> return $ IrVar s
+            t -> errorCase t 
+
+closureConvert (BinaryOp _ op t1 t2) f xs = do 
+      ir1 <- closureConvert t1 f xs 
+      ir2 <- closureConvert t2 f xs
       return $  IrBinaryOp op ir1 ir2 
 
-closureConvert (BinaryOp _ op t1 t2) = do 
-      ir1 <- closureConvert t1 
-      ir2 <- closureConvert t2
-      return $  IrBinaryOp op ir1 ir2 
-
-closureConvert (BinaryOp _ op t1 t2) = do 
-      ir1 <- closureConvert t1 
-      ir2 <- closureConvert t2
-      return $  IrBinaryOp op ir1 ir2
-
-closureConvert (IfZ _ tz tt tf) = do 
-      ir1 <- closureConvert tz
-      ir2 <- closureConvert tt
-      ir3 <- closureConvert tf
+closureConvert (IfZ _ tz tt tf) f xs = do 
+      ir1 <- closureConvert tz f xs
+      ir2 <- closureConvert tt f xs
+      ir3 <- closureConvert tf f xs
       return $ IrIfZ ir1 ir2 ir3 
 
-closureConvert (Let _ n _ t1  t2) = do
-      ir1 <- closureConvert t1
-      let xs = countArgs t1 [] 
-      let decl = if isEmpty xs then IrVal n ir1
-                 else IrFun n xs ir1
-      put decl
-      closureConvert t2
-
-
-
--- considerar si se se puede declarar un fix en una fun anidada
-countArgs :: Term -> [String] -> [String]
-countArgs (Lam _ n _ t) xs =  countArgs t (n:xs)
-countArgs _ xs = xs
-
-
-closureConvert (Lam _ n _ t2) = do 
-
-
-
-
-suma 3 4 = (suma 3) 4
-
-closureConvert (App _ t1 t2) = do 
+closureConvert (Let _ x _ t1  t2) f xs = do
+      let tt = open x t2
+      ir1 <- closureConvert t1 f xs
+      ir2 <- closureConvert tt f (x:xs)
+      return $ IrLet x ir1 ir2
       
+closureConvert t@(Lam _ x ty t1) f xs = do
+      let tt = open x t1
+      irt <- closureConvert tt f xs       
+      let vars = variableCollector t      
+      name <- freshen f -- obtiene un nombre fresco
+      let cloname = "_clo" ++ name 
+      let decl = IrFun name (cloname:vars) (declareFreeVars irt cloname $ reverse xs)
+      tell [decl] 
+      return $ MkClosure name [IrVar x | x <- xs]
+
+closureConvert (App _ t1 t2) f xs = do
+      ir2 <- closureConvert t2 f xs
+      ir1 <- closureConvert t1 f xs
+      case ir1 of 
+            IrCall n xss -> return $ IrCall n $ xss ++ [ir2]
+            MkClosure n xss  -> return $ IrCall (IrVar n) [MkClosure n xss,ir2]
+            IrGlobal n -> return $ IrCall (IrVar n) [ir2]   
+            IrVar n -> return $ IrCall (IrVar n) [ir2] -- aca falta pasarle la clausura   
+            tt -> errorCase tt
 
 
-closureConvert' (App _ (V _ (Bound n)) t) n = do 
-      decls <- get
-      let decl = decl !! n
-      let ctosArgs = length $ irDeclArgNames decl
-      if n == ctosArgs then IrCall Ir [Ir]
-      else  MkClosure (irDeclName decl) [Ir]
-      
+closureConvert (Print _ s t) f xs = closureConvert t f xs >>= \ir -> return $ IrPrint s ir
 
-closureConvert' (App _ t1  t2) xs = do 
-      ir2 <- closureConvert' t2
-      closureConvert' t1 (ir2:xs)  
+closureConvert (Const _ c) f xs = return $ IrConst c
+
+closureConvert t _ _ = errorCase t
+
+
+errorCase t = error $ "No consideramos este caso " ++ show t
+
+variableCollector :: Term -> [Name]
+variableCollector (Lam _ x _ t) = x : (variableCollector t)
+variableCollector (Fix _ x _ _ _ t) = x : (variableCollector t)
+variableCollector _ = []
+
+-- Dado un ir y el nombre de la variable donde se almacena la clausura
+-- declara todas las variables libre en t
+declareFreeVars :: Ir -> Name -> [String] -> Ir
+declareFreeVars t _ [] = t
+declareFreeVars t clo (x:xs) = IrLet x (IrAccess (IrVar clo) (length xs)) $ declareFreeVars t clo xs
+
+freshen :: Name -> StateT Int (Writer [IrDecl]) Name
+freshen n = do i <- get 
+               put $ i + 1
+               return $ "__" ++ n ++ show i
