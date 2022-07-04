@@ -17,8 +17,9 @@ import Control.Monad.Catch (MonadMask)
 
 --import Control.Monad
 import Control.Monad.Trans
-import Data.List (nub,  intersperse, isPrefixOf)
+import Data.List (nub,  intersperse, isPrefixOf, null)
 import Data.List.Split (endBy)
+import Data.Maybe (fromJust)
 import Data.Char ( isSpace )
 import Control.Exception ( catch , IOException )
 import System.IO ( hPrint, stderr, hPutStrLn )
@@ -42,10 +43,10 @@ import System.IO.Extra (FilePath)
 import Bytecompile 
 import MonadFD4 (failFD4, MonadFD4)
 import Optimizations
-import IR(IrDecl,irDeclName,irDeclArgNames,Ir(..))
-import ClosureConvert(closureConvert)
+import IR(IrDecl,IrDecls(..),irDeclName,irDeclArgNames,Ir(..),IrDecl(..))
+import ClosureConvert(closureConvert,variableCollector)
 import Control.Monad.Writer.Lazy
-
+import C(ir2C)
 
 
 prompt :: String
@@ -369,23 +370,32 @@ ccFile :: MonadFD4 m => FilePath -> m()
 ccFile filePath = do 
   case endBy ".fd4" filePath of 
     [path] -> do ds <- loadFile filePath
-                 ds' <- mapM typecheckDecl ds                
-                 let decls = concat $ mapM (\d ->  fromStateToList d) ds'                         
-                 printFD4 $ show decls
+                 ds' <- mapM typecheckDecl ds                  
+                 let info = map (\d -> (sdeclName d,
+                                        (isEmpty $ sdeclArgs d,
+                                        map (\x -> fst x) $ sdeclArgs d))
+                                        ) ds                        
+                     decls = concat $ map (\d ->  fromStateToList d 
+                                                                  (fromJust $ lookup (declName d) info)
+                                                                  ) ds'   
+                     decls' = IrDecls decls                      
+                 liftIO $ writeFile (path ++ ".c") (ir2C decls')
     _ -> failFD4 "Error: el archivo debe tener extension .fd4" 
+
+    where isEmpty = null
+    
+                                       
    
   
 
-fromStateToList :: Decl Term -> [IrDecl]
-fromStateToList d = let dName = declName d
-                        clo = closureConvert (declBody d) dName []                        
-                        ((t,_),decls) = runWriter $ runStateT clo 0
-                    in case t of 
-                          MkClosure _ _ -> map (\d -> modifiedDecl d dName) decls
-                          _ -> error "ahora vemos"
-
-  where modifiedDecl d declName = 
-          if irDeclName d == "__" ++ declName ++ "0" then d {irDeclName = declName, irDeclArgNames = tail $ irDeclArgNames d}
-          else d
-
-
+fromStateToList :: Decl Term -> (Bool,[Name]) -> [IrDecl]
+fromStateToList d info = 
+  let dName = declName d
+      term = declBody d
+      clo = closureConvert term dName [] 
+      isVal = fst info
+      args = snd info                       
+      ((t,_),decls) = runWriter $ runStateT clo 0      
+  in if isVal then decls ++ [IrVal dName t]
+     else decls ++ [IrFun dName args t]
+ 

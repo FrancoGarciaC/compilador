@@ -77,19 +77,21 @@ closureConvert (IfZ _ tz tt tf) f xs = do
 
 closureConvert (Let _ x _ t1  t2) f xs = do
       let tt = open x t2      
-      ir1 <- closureConvert t1 f xs
-      ir2 <- closureConvert tt f (x:xs)
+      ir1 <- closureConvert t1 f xs      
+      ir2 <- closureConvert tt f (x:xs) 
       return $ IrLet x ir1 ir2
       
 closureConvert t@(Lam _ x ty t1) f xs = do
       let tt = open x t1
-      irt <- closureConvert tt f xs       
-      let vars = variableCollector t      
-      name <- freshen f -- obtiene un nombre fresco
-      let cloname = "_clo" ++ name 
-      let decl = IrFun name (cloname:vars) (declareFreeVars irt cloname $ reverse xs)
-      tell [decl] 
-      return $ MkClosure name [IrVar x | x <- xs]
+      level <- get 
+      name <- freshen f -- obtiene un nombre fresco      
+      irt <- closureConvert tt f (x:xs)          
+      if level == 0 then return irt
+      else  do let vars = variableCollector t                     
+               let cloname = "clo"
+               let decl = IrFun name (cloname:vars) (declareFreeVars irt cloname $ reverse xs)
+               tell [decl]
+               return $ MkClosure name [IrVar x | x <- xs]
 
 closureConvert (App _ t1 t2) f xs = do
       ir2 <- closureConvert t2 f xs
@@ -98,7 +100,7 @@ closureConvert (App _ t1 t2) f xs = do
             IrCall n xss -> return $ IrCall n $ xss ++ [ir2]
             MkClosure n xss  -> return $ IrCall (IrVar n) [MkClosure n xss,ir2]
             IrGlobal n -> return $ IrCall (IrVar n) [ir2]   
-            IrVar n -> return $ IrCall (IrVar n) [ir2] -- aca falta pasarle la clausura   
+            IrVar n ->  return $ IrCall (IrAccess (IrVar n) 0) [IrVar n,ir2]                        
             tt -> errorCase tt
 
 

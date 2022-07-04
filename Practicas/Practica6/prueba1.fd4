@@ -1,7 +1,3 @@
 let put ( z : Nat ) : Nat = let p (t : Nat) : Nat = print ":=" (t+z) in p 3
 
-
-let __put1 (clo,t) = let z = access 0 clo in print ":=" (t+z)
-
-let put ( z : Nat ) : Nat =  let __clo = <__put1> in IrCall (IrAccess 0 __clo) [(IrVar __clo) (IrConst 3)]
-                                                    App (Free  n) (Free __clo)                                                    
+let prog : Nat = put 5
