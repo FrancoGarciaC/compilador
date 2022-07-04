@@ -122,7 +122,7 @@ variableCollector _ = []
 -- declara todas las variables libre en t
 declareFreeVars :: Ir -> Name -> [String] -> Ir
 declareFreeVars t _ [] = t
-declareFreeVars t clo (x:xs) = IrLet x (IrAccess (IrVar clo) (length xs)) $ declareFreeVars t clo xs
+declareFreeVars t clo q@(x:xs) = IrLet x (IrAccess (IrVar clo) (length q)) $ declareFreeVars t clo xs
 
 freshen :: Name -> StateT Int (Writer [IrDecl]) Name
 freshen n = do i <- get 
