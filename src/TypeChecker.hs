@@ -9,7 +9,7 @@ Stability   : experimental
 -}
 module TypeChecker (
    tc,
-   tcDecl 
+   tcDecl
    ) where
 
 import Lang
@@ -48,7 +48,7 @@ tc (Lam p v ty t) bs = do
 tc (App p t u) bs = do
          tyt <- tc t bs
          (dom,cod) <- domCod t tyt         
-         tyu <- tc u bs
+         tyu <- tc u bs      
          expect dom tyu u
          return cod
 tc (Fix p f fty x xty t) bs = do         
@@ -60,8 +60,8 @@ tc (Fix p f fty x xty t) bs = do
          ty' <- tc t' ((x,xty):(f,fty):bs)
          expect cod ty' t'
          return fty
-tc (Let p v ty def t) bs = do
-         ty' <- tc def bs
+tc (Let p v ty def t) bs = do         
+         ty' <- tc def bs        
          expect ty ty' def
          tc (open v t) ((v,ty):bs)
 tc (BinaryOp p op t u) bs = do
@@ -97,15 +97,16 @@ domCod t ty = typeError t $ "Se esperaba un tipo función, pero se obtuvo: " ++ 
 
 -- | 'tcDecl' chequea el tipo de una declaración
 -- y la agrega al entorno de tipado de declaraciones globales
-tcDecl :: MonadFD4 m  => Decl Term -> m ()
-tcDecl (Decl p n t) = do
+tcDecl :: MonadFD4 m  => Ty -> Decl Term -> m ()
+tcDecl tyDecl (Decl p n t) = do
     --chequear si el nombre ya está declarado
     mty <- lookupTy n
     s <- get
     case mty of
          Nothing -> do  --no está declarado 
                      s <- get       
-                     ty <- tc t (tyEnv s)                 
+                     ty <- tc t (tyEnv s)                      
+                     expect tyDecl ty t
                      addTy n ty
          Just _  -> failPosFD4 p $ n ++" ya está declarado"
 

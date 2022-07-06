@@ -87,9 +87,8 @@ closureConvert t@(Lam _ x ty t1) f xs = do
       name <- freshen f -- obtiene un nombre fresco      
       irt <- closureConvert tt f (x:xs)          
       if level == 0 then return irt
-      else  do let vars = variableCollector t                     
-               let cloname = "clo"
-               let decl = IrFun name (cloname:vars) (declareFreeVars irt cloname $ reverse xs)
+      else  do let cloname = "clo" ++ show level
+                   decl = IrFun name ([cloname,x]) (declareFreeVars irt cloname $ reverse xs)
                tell [decl]
                return $ MkClosure name [IrVar x | x <- xs]
 

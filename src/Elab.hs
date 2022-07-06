@@ -107,7 +107,7 @@ desugar' q@(SLet i rec n ls t stmDef stmBody) =
        in case ls of
             [] -> Let i n  t def body
             _ -> if not rec then let fun = Slam i ls stmDef
-                                 in Let i n (FunTy (buildType ls) t) (desugar' fun) body
+                                 in Let i n (buildType $ ls ++ [("",t)]) (desugar' fun) body
                  else case ls of
                          [(a,ta)] ->let fix= Fix i n t a ta def
                                     in Let i n (FunTy ta t) fix body

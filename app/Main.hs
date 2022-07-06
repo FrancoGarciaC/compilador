@@ -33,7 +33,7 @@ import Global ( GlEnv(..) )
 import Errors
 import Lang
 import Parse ( P, stm, program, runP,declOrStm)
-import Elab ( elab,desugar,desugar')
+import Elab ( elab,desugar,desugar', buildType)
 import Eval ( eval )
 import PPrint ( pp , ppTy, ppDecl )
 import MonadFD4
@@ -200,11 +200,12 @@ parseIO filename p x = case runP p x filename of
 
 typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Decl Term)
 typecheckDecl decl = do
-        let  (Decl _ _ t) = desugar decl
+        let  tyDecl =  buildType $ sdeclArgs decl ++  [("",sdeclType decl)]
+             (Decl _ _ t) = desugar decl
              p = sdeclPos decl
              x = sdeclName decl    
         let dd = (Decl p x (elab t))
-        tcDecl dd
+        tcDecl tyDecl dd
         return dd
 
 
