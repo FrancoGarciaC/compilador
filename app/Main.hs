@@ -44,7 +44,7 @@ import Bytecompile
 import MonadFD4 (failFD4, MonadFD4)
 import Optimizations
 import IR(IrDecl,IrDecls(..),irDeclName,irDeclArgNames,Ir(..),IrDecl(..))
-import ClosureConvert(closureConvert,variableCollector)
+import ClosureConvert(closureConvert)
 import Control.Monad.Writer.Lazy
 import C(ir2C)
 

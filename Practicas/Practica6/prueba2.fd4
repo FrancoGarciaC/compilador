@@ -1,0 +1,2 @@
+let put  (x: Nat) (y : Nat) : Nat =  let f ( p : Nat ) (t : Nat) : Nat = p + x + y in f 1 2
+let prog : Nat = put 5 8
