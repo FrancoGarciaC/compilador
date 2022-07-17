@@ -21,7 +21,7 @@ void* fd4_put (void** fd4_z) {
 }
 void* fd4_prog;
 uint64_t* fd4main() {
-  fd4_prog = (void *)(((void* (*) (void*, void*)) fd4_put)((void *)5));
+  fd4_prog = (void *)(((void* (*) (void*)) fd4_put)((void *)5));
   fd4_printn((uint64_t)fd4_prog)
   ;
   return 0;

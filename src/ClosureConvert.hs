@@ -38,7 +38,7 @@ closureConvert t@(Lam _ x ty t1) f xs = do
       let tt = open x t1
       level <- get 
       name <- freshen f -- obtiene un nombre fresco      
-      irt <- closureConvert tt f (x:xs)          
+      irt <- closureConvert tt f (x:xs) 
       if level == 0 then return irt
       else  do let cloname = getClosureName level
                    decl = IrFun name ([cloname,x]) (declareFreeVars irt cloname $ reverse xs)
@@ -49,13 +49,16 @@ closureConvert (App _ t1 t2) f xs = do
       ir2 <- closureConvert t2 f xs
       ir1 <- closureConvert t1 f xs
       case ir1 of 
-            IrCall n xss -> return $ IrCall n $ xss ++ [ir2]
+            q@(IrCall n xss) -> do level <- get           
+                                   let var = "var" ++ show level                         
+                                   return $ IrLet var q (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2])
             q@(MkClosure n xss)  -> do level <- get
                                        let cloname = getClosureName level
                                        return $ IrLet cloname q  (IrCall (IrAccess (IrVar cloname) 0) [IrVar cloname,ir2] )
-            IrGlobal n -> return $ IrCall (IrVar n) [ir2]   
+            IrGlobal n -> return $ IrCall (IrVar n) [MkClosure n [],ir2]   
             IrVar n ->  return $ IrCall (IrAccess (IrVar n) 0) [IrVar n,ir2]                        
-            tt -> errorCase tt
+            tt -> error $ "Aca entra" ++ show tt
+
 
 
 closureConvert (Print _ s t) f xs = closureConvert t f xs >>= \ir -> return $ IrPrint s ir

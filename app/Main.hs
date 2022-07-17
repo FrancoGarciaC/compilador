@@ -395,7 +395,7 @@ fromStateToList d info =
       term = declBody d
       clo = closureConvert term dName [] 
       isVal = fst info
-      args = snd info                       
+      args = ["clo",head $ snd info]                       
       ((t,_),decls) = runWriter $ runStateT clo 0      
   in if isVal then decls ++ [IrVal dName t]
      else decls ++ [IrFun dName args t]

@@ -70,3 +70,6 @@ irPrintN x = pretty "fd4_printn" <> parens (u64 <> x)
 
 ir2C :: IrDecls -> String
 ir2C (IrDecls xs) = unpack . renderStrict . layoutSmart defaultLayoutOptions $ vsep (prelude : map decl2doc xs ++ [fd4Main xs])
+
+
+

@@ -1,2 +1,2 @@
-let put  (x: Nat) (y : Nat) : Nat =  let f ( p : Nat ) (t : Nat) : Nat = p + x + y in f 1 2
-let prog : Nat = put 5 8
+let sum  (x: Nat) (y : Nat) (z : Nat) (h : Nat) : Nat = x + y + z + h
+let prog : Nat = let medio : Nat -> Nat -> Nat = sum 5 3 in let medio2 : Nat -> Nat = medio 8 in medio2 4

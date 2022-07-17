@@ -1,0 +1,3 @@
+let sum  (x: Nat) (y : Nat) (z : Nat) (h : Nat)  : Nat = x + y + z + h
+let sumatemp : Nat -> Nat = let medio : Nat -> Nat = sum 5 3 4 in medio
+let final : Nat = sumatemp 2
