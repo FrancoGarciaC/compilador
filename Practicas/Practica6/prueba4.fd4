@@ -1,0 +1,6 @@
+let const : Nat = 200
+let sum  (w x y z  : Nat) : Nat = w + x + y + z + const
+let sumatemp : Nat -> Nat -> Nat = let medio : Nat -> Nat -> Nat = sum 5 3 in medio
+let sumatemp2 : Nat -> Nat -> Nat = sum 20 21
+let final : Nat = sumatemp2 2 8
+

@@ -9,63 +9,63 @@ import Subst(open)
 
 type ClosureState a = StateT Int (Writer [IrDecl]) a
 
-closureConvert :: Term -> String -> [Name] -> ClosureState Ir
+closureConvert :: Term -> String -> [Name] -> [Name] -> ClosureState Ir
 
-closureConvert (V _ v) f xs = 
+closureConvert (V _ v) f xs fwa = 
       case v of 
             (Global s) -> return $ IrGlobal s
             (Free s) -> return $ IrVar s
             t -> errorCase t 
 
-closureConvert (BinaryOp _ op t1 t2) f xs = do 
-      ir1 <- closureConvert t1 f xs 
-      ir2 <- closureConvert t2 f xs
+closureConvert (BinaryOp _ op t1 t2) f xs fwa = do 
+      ir1 <- closureConvert t1 f xs fwa
+      ir2 <- closureConvert t2 f xs fwa
       return $  IrBinaryOp op ir1 ir2 
 
-closureConvert (IfZ _ tz tt tf) f xs = do 
-      ir1 <- closureConvert tz f xs
-      ir2 <- closureConvert tt f xs
-      ir3 <- closureConvert tf f xs
+closureConvert (IfZ _ tz tt tf) f xs fwa = do 
+      ir1 <- closureConvert tz f xs fwa
+      ir2 <- closureConvert tt f xs fwa
+      ir3 <- closureConvert tf f xs fwa
       return $ IrIfZ ir1 ir2 ir3 
 
-closureConvert (Let _ x _ t1  t2) f xs = do
+closureConvert (Let _ x _ t1  t2) f xs fwa = do
       let tt = open x t2      
-      ir1 <- closureConvert t1 f xs      
-      ir2 <- closureConvert tt f (x:xs) 
+      ir1 <- closureConvert t1 f xs fwa     
+      ir2 <- closureConvert tt f (x:xs) fwa
       return $ IrLet x ir1 ir2
       
-closureConvert t@(Lam _ x ty t1) f xs = do
+closureConvert t@(Lam _ x ty t1) f xs fwa = do
       let tt = open x t1
       level <- get 
-      name <- freshen f -- obtiene un nombre fresco      
-      irt <- closureConvert tt f (x:xs) 
+      name <- freshen f 
+      irt <- closureConvert tt f (x:xs) fwa
       if level == 0 then return irt
-      else  do let cloname = getClosureName level
-                   decl = IrFun name ([cloname,x]) (declareFreeVars irt cloname $ reverse xs)
+      else  do let decl = IrFun name (["clo",x]) (declareFreeVars irt "clo" $ reverse xs)
                tell [decl]
                return $ MkClosure name [IrVar x | x <- xs]
 
-closureConvert (App _ t1 t2) f xs = do
-      ir2 <- closureConvert t2 f xs
-      ir1 <- closureConvert t1 f xs
-      case ir1 of 
-            q@(IrCall n xss) -> do level <- get           
-                                   let var = "var" ++ show level                         
-                                   return $ IrLet var q (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2])
-            q@(MkClosure n xss)  -> do level <- get
-                                       let cloname = getClosureName level
+closureConvert (App _ t1 t2) f xs fwa = do
+      ir2 <- closureConvert t2 f xs fwa
+      ir1 <- closureConvert t1 f xs fwa
+      case ir1 of             
+            q@(MkClosure n xss)  -> do cloname <- freshen "clo"
                                        return $ IrLet cloname q  (IrCall (IrAccess (IrVar cloname) 0) [IrVar cloname,ir2] )
-            IrGlobal n -> return $ IrCall (IrVar n) [MkClosure n [],ir2]   
+            
+            IrGlobal n -> do var <- freshen "var"
+                             return $ if not $ n `elem` fwa then IrCall (IrVar n) [MkClosure n [],ir2]   
+                                      else IrLet var (IrCall (IrVar n) [MkClosure n [],IrConst (CNat 0)]) (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2])
+                       
             IrVar n ->  return $ IrCall (IrAccess (IrVar n) 0) [IrVar n,ir2]                        
-            tt -> error $ "Aca entra" ++ show tt
+            t -> do var <- freshen "var"
+                    return $ IrLet var t (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2])
 
 
 
-closureConvert (Print _ s t) f xs = closureConvert t f xs >>= \ir -> return $ IrPrint s ir
+closureConvert (Print _ s t) f xs fwa = closureConvert t f xs fwa >>= \ir -> return $ IrPrint s ir
 
-closureConvert (Const _ c) f xs = return $ IrConst c
+closureConvert (Const _ c) f xs fwa = return $ IrConst c
 
-closureConvert t _ _ = errorCase t
+closureConvert t _ _ _ = errorCase t
 
 
 errorCase t = error $ "No consideramos este caso " ++ show t
@@ -84,3 +84,5 @@ freshen n = do i <- get
 
 getClosureName :: Int -> Name 
 getClosureName n = "clo" ++ show n               
+
+

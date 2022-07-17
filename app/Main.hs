@@ -371,32 +371,40 @@ ccFile :: MonadFD4 m => FilePath -> m()
 ccFile filePath = do 
   case endBy ".fd4" filePath of 
     [path] -> do ds <- loadFile filePath
-                 ds' <- mapM typecheckDecl ds                  
-                 let info = map (\d -> (sdeclName d,
-                                        (isEmpty $ sdeclArgs d,
+                 ds' <- mapM typecheckDecl ds     
+                 let funcWithoutArgs = map (\d -> (sdeclName d ,isFuncWithouArgs d)) ds   
+                     funcNamesWithoutArgs = filter (\(d,b)-> b) funcWithoutArgs          
+                     info = map (\d -> (sdeclName d,
+                                        (checkIfIsVal $ buildType $ sdeclArgs d ++ [("",sdeclType d)],
                                         map (\x -> fst x) $ sdeclArgs d))
                                         ) ds                        
                      decls = concat $ map (\d ->  fromStateToList d 
                                                                   (fromJust $ lookup (declName d) info)
+                                                                  (fst $ unzip funcNamesWithoutArgs)
                                                                   ) ds'   
                      decls' = IrDecls decls                      
                  liftIO $ writeFile (path ++ ".c") (ir2C decls')
     _ -> failFD4 "Error: el archivo debe tener extension .fd4" 
 
-    where isEmpty = null
+    where checkIfIsVal NatTy  = True
+          checkIfIsVal _  = False
+          isFuncWithouArgs d = if checkIfIsVal $ buildType $ sdeclArgs d ++ [("",sdeclType d)] then False
+                               else null $ sdeclArgs d              
+
     
                                        
    
   
 
-fromStateToList :: Decl Term -> (Bool,[Name]) -> [IrDecl]
-fromStateToList d info = 
+fromStateToList :: Decl Term -> (Bool,[Name]) -> [Name] -> [IrDecl]
+fromStateToList d info fwa = 
   let dName = declName d
       term = declBody d
-      clo = closureConvert term dName [] 
+      clo = closureConvert term dName [] fwa
       isVal = fst info
-      args = ["clo",head $ snd info]                       
-      ((t,_),decls) = runWriter $ runStateT clo 0      
+      args = snd info     
+      declArg = let args = snd info in if null args then "dummy" else head args               
+      ((t,_),decls) = runWriter $ runStateT clo 0 
   in if isVal then decls ++ [IrVal dName t]
-     else decls ++ [IrFun dName args t]
+     else decls ++ [IrFun dName ["clo",declArg] t]
  
