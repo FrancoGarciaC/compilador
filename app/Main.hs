@@ -44,7 +44,7 @@ import Bytecompile
 import MonadFD4 (failFD4, MonadFD4)
 import Optimizations
 import IR(IrDecl,IrDecls(..),irDeclName,irDeclArgNames,Ir(..),IrDecl(..))
-import ClosureConvert(closureConvert)
+import ClosureConvert(closureConvert,fromStateToList)
 import Control.Monad.Writer.Lazy
 import C(ir2C)
 
@@ -395,16 +395,3 @@ ccFile filePath = do
                                        
    
   
-
-fromStateToList :: Decl Term -> (Bool,[Name]) -> [Name] -> [IrDecl]
-fromStateToList d info fwa = 
-  let dName = declName d
-      term = declBody d
-      clo = closureConvert term dName [] fwa
-      isVal = fst info
-      args = snd info     
-      declArg = let args = snd info in if null args then "dummy" else head args               
-      ((t,_),decls) = runWriter $ runStateT clo 0 
-  in if isVal then decls ++ [IrVal dName t]
-     else decls ++ [IrFun dName ["clo",declArg] t]
- 
