@@ -4,7 +4,7 @@ import IR
 import Lang
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Writer.Lazy
-import Subst(open)
+import Subst(open,openN)
 
 
 type ClosureState a = StateT Int (Writer [IrDecl]) a
@@ -59,6 +59,14 @@ closureConvert (App _ t1 t2) f xs fwa = do
                     return $ IrLet var t (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2])
 
 
+closureConvert (Fix _ ff _ x _ t) f xs fwa = do 
+      let tt = openN [ff,x] t
+      irt <- closureConvert tt f (x:xs) fwa
+      let decl = IrFun ff (["clo",x]) (declareFreeVars irt "clo" $ reverse xs)
+      tell [decl]
+      return $ MkClosure ff [IrVar x | x <- xs]
+
+
 
 closureConvert (Print _ s t) f xs fwa = closureConvert t f xs fwa >>= \ir -> return $ IrPrint s ir
 
@@ -68,7 +76,6 @@ closureConvert t _ _ _ = errorCase t
 
 
 errorCase t = error $ "No consideramos este caso " ++ show t
-
 
 -- Dado un ir y el nombre de la variable donde se almacena la clausura
 -- declara todas las variables libre en t
@@ -82,10 +89,7 @@ freshen n = do i <- get
                return $ "__" ++ n ++ show i
 
 getClosureName :: Int -> Name 
-getClosureName n = "clo" ++ show n               
-
-
-
+getClosureName n = "clo" ++ show n
 
 fromStateToList :: Decl Term -> (Bool,[Name]) -> [Name] -> [IrDecl]
 fromStateToList d info fwa = 
