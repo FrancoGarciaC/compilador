@@ -61,10 +61,10 @@ closureConvert (App _ t1 t2) f xs fwa = do
 
 closureConvert (Fix _ ff _ x _ t) f xs fwa = do 
       let tt = openN [ff,x] t
-      irt <- closureConvert tt f (x:xs) fwa
+      irt <- closureConvert tt f ([ff,x] ++ xs) fwa      
       let decl = IrFun ff (["clo",x]) (declareFreeVars irt "clo" $ reverse xs)
       tell [decl]
-      return $ MkClosure ff [IrVar x | x <- xs]
+      return $ MkClosure ff ((IrVar "clo") : [IrVar x | x <- xs])
 
 
 
@@ -96,13 +96,14 @@ fromStateToList d info fwa =
   let dName = declName d
       (term, freeVars) = case declBody d of 
                               Lam _ var _ t -> (open var t,[var])
+                              Fix _ ff _ var _ t -> (openN [ff,var] t,[ff,var])
                               t -> (t,[])
-      clo = closureConvert term dName freeVars fwa
+      irt = closureConvert term dName freeVars fwa
       isVal = fst info
       args = snd info     
       declArg = let args = snd info in if null args then "dummy" else head args               
-      ((tf,_),decls) = runWriter $ runStateT clo 0 
+      ((tf,_),decls) = runWriter $ runStateT irt 0 
   in if isVal then decls ++ [IrVal dName tf]
-     else decls ++ [IrFun dName ["clo",declArg] tf]
+     else decls ++ [IrFun dName [dName,declArg] tf]
  
 

@@ -4,14 +4,14 @@ extern void *fd4_mkclosure(void*, int, ...);
 extern void *fd4_printn(uint64_t);
 extern void *fd4_sub(uint64_t, uint64_t);
 
-void* fd4_app2 (void** fd4_clo, void** fd4_f) {
+void* fd4_app2 (void** fd4_app2, void** fd4_f) {
   return (void *)(({
     void** fd4___var0 = ((void* (*) (void*, void*)) (fd4_f)[0])( (void *)fd4_f
     , (void *)4 );
     ((void* (*) (void*, void*)) (fd4___var0)[0])((void *)fd4___var0, (void *)9);
   }));
 }
-void* fd4_app (void** fd4_clo, void** fd4_f) {
+void* fd4_app (void** fd4_app, void** fd4_f) {
   return (void *)(((void* (*) (void*, void*)) fd4_app2)( (void *)fd4_mkclosure( fd4_app2
   , 0 )
   , (void *)({
