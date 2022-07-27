@@ -1,0 +1,7 @@
+let rec isEven (m : Nat) : Nat = ifz m then 0 else isOdd (m-1)
+
+let rec isOdd (n : Nat) : Nat = ifz n then 1 else isEven (n-1)
+
+
+
+let final : Nat = ifz isEven 5 then 0 else 1
