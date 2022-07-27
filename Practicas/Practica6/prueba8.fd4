@@ -1,0 +1,10 @@
+let rec map (x : Nat) (f : Nat -> Nat) (g : Nat -> Nat) : Nat =
+        ifz x then x 
+        else let res : Nat = f x in
+             let res2 : Nat = g x in
+             map (x-1) f g
+
+let mapF (x y : Nat) : Nat = print "x+y:=" (x+y)
+let mapP (h j : Nat) : Nat = print "h-j:=" (h-j)
+
+let final : Nat = map 20 (mapF 5) (mapP 100)

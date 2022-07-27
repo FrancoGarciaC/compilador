@@ -46,17 +46,21 @@ closureConvert t@(Lam _ x ty t1) f xs fwa = do
 closureConvert (App _ t1 t2) f xs fwa = do
       ir2 <- closureConvert t2 f xs fwa
       ir1 <- closureConvert t1 f xs fwa
+      let ir2' = case ir2 of                                              
+                   IrGlobal n -> MkClosure n []
+                   _ -> ir2
       case ir1 of             
             q@(MkClosure n xss)  -> do cloname <- freshen "clo"
-                                       return $ IrLet cloname q  (IrCall (IrAccess (IrVar cloname) 0) [IrVar cloname,ir2] )
+                                       return $ IrLet cloname q  (IrCall (IrAccess (IrVar cloname) 0) [IrVar cloname,ir2'] )
             
             IrGlobal n -> do var <- freshen "var"
-                             return $ if not $ n `elem` fwa then IrCall (IrVar n) [MkClosure n [],ir2]   
-                                      else IrLet var (IrCall (IrVar n) [MkClosure n [],IrConst (CNat 0)]) (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2])
+                             
+                             return $ if not $ n `elem` fwa then IrCall (IrVar n) [MkClosure n [],ir2']   
+                                      else IrLet var (IrCall (IrVar n) [MkClosure n [],IrConst (CNat 0)]) (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2'])
                        
-            IrVar n ->  return $ IrCall (IrAccess (IrVar n) 0) [IrVar n,ir2]                        
+            IrVar n ->  return $ IrCall (IrAccess (IrVar n) 0) [IrVar n,ir2']                        
             t -> do var <- freshen "var"
-                    return $ IrLet var t (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2])
+                    return $ IrLet var t (IrCall (IrAccess (IrVar var) 0) [IrVar var,ir2'])                    
 
 
 closureConvert (Fix _ ff _ x _ t) f xs fwa = do 
