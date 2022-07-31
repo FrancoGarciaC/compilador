@@ -3,3 +3,4 @@ type s = Nat->Nat
 type n = Nat-> m -> s
 let misuma (a:Nat) (b:Nat) (c:Nat) : m = a+b+c
 let prueba (f:n): m = f 1 2 3
+let final : m = prueba misuma
