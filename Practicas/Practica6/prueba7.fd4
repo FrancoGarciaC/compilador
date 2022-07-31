@@ -1,4 +1,7 @@
-let rec map (x : Nat) (f : Nat -> Nat) : Nat = ifz x then x else let res : Nat = f x in map (x-1) f
+
+
+type funNat = Nat -> Nat 
+let rec map (x : Nat) (f : funNat) : Nat = ifz x then x else let res : Nat = f x in map (x-1) f
 
 let mapF (x y : Nat) : Nat = print "x+y:=" (x+y)
 
