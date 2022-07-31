@@ -100,12 +100,12 @@ domCod t ty = typeError t $ "Se esperaba un tipo función, pero se obtuvo: " ++ 
 tcDecl :: MonadFD4 m  => Ty -> Decl Term -> m ()
 tcDecl tyDecl (Decl p n t) = do
     --chequear si el nombre ya está declarado
-    mty <- lookupTy n
-    s <- get
+    mty <- lookupTy n    
+    s <- get    
     case mty of
          Nothing -> do  --no está declarado 
-                     s <- get       
-                     ty <- tc t (tyEnv s)                      
+                     printFD4 $ "term " ++ show t
+                     ty <- tc t (tyEnv s)    
                      expect tyDecl ty t
                      addTy n ty
          Just _  -> failPosFD4 p $ n ++" ya está declarado"

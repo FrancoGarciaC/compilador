@@ -163,9 +163,9 @@ addSinType n t = modify (\s -> s { tySin = (n,t) : tySin s })
 
 
 --Chequea si un tipo t esta bien definido y lo convierte si usa sinonimos
-checkSinType::MonadFD4 m=>Ty-> m Ty
+checkSinType::MonadFD4 m => Ty-> m Ty
 checkSinType NatTy = return NatTy 
-checkSinType (SinTy n) = do e<-getSinTypEnv
+checkSinType (SinTy n) = do e <- getSinTypEnv
                             let val = lookup n e
                             case val of 
                                Nothing -> failFD4 $ "El tipo "++n++" no esta definido"                                             

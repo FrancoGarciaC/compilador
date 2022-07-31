@@ -19,7 +19,7 @@ import Control.Monad.Catch (MonadMask)
 import Control.Monad.Trans
 import Data.List (nub,  intersperse, isPrefixOf, null)
 import Data.List.Split (endBy)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust,isJust)
 import Data.Char ( isSpace )
 import Control.Exception ( catch , IOException )
 import System.IO ( hPrint, stderr, hPutStrLn )
@@ -187,7 +187,7 @@ typecheckFile opt f = do
     printFD4 $"Chequeando "++f
     printFD4 $ "Opt:" ++ show opt
     decls <- loadFile f
-    ppterms <- mapM (typecheckDecl >=> optDeclaration opt >=> ppDecl) decls    
+    ppterms <- mapM (typecheckDecl >=> (optDeclaration opt).fromJust >=> ppDecl) decls    
     mapM_ printFD4 ppterms
 
 parseIO ::  MonadFD4 m => String -> P a -> String -> m a
@@ -195,23 +195,35 @@ parseIO filename p x = case runP p x filename of
                   Left e  -> throwError (ParseErr e)
                   Right r -> return r
 
--- 
 
-
-typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Decl Term)
-typecheckDecl decl = do
-        let  tyDecl =  buildType $ sdeclArgs decl ++  [("",sdeclType decl)]
-             (Decl _ _ t) = desugar decl
+typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl Term))
+typecheckDecl decl@SDecl {} = do
+        tyDecl <- checkSinType $ buildType $ sdeclArgs decl ++  [("",sdeclType decl)]
+        printFD4 $ show $ sdeclName decl
+        printFD4 $ show tyDecl
+        let  (Decl _ _ t) = desugar decl
              p = sdeclPos decl
              x = sdeclName decl    
-        let dd = (Decl p x (elab t))
+             dd = (Decl p x (elab t))
         tcDecl tyDecl dd
-        return dd
+        printFD4 "siii"
+        return $ Just dd
+
+typecheckDecl d@SType {} = do
+      let n=sinTypeName d
+          v=sinTypeVal d
+      res <- lookupSinTy n
+      case res of
+          Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
+          Nothing -> do v'<-checkSinType v                        
+                        addSinType n v'
+                        return Nothing
+
 
 
 bytecompileFile :: MonadFD4 m => FilePath -> m ()
 bytecompileFile filePath = do ds <- loadFile filePath
-                              ds' <- mapM typecheckDecl ds
+                              ds' <- mapM typecheckDecl ds >>= \xs -> return $ map fromJust $ filter isJust xs
                               bc <- bytecompileModule ds'                              
                               case endBy ".fd4" filePath of 
                                 [path] -> liftIO $ bcWrite bc $ path ++ ".byte"
@@ -231,20 +243,10 @@ handleDecl t d@SDecl {} = do
         let (args,typs) = unzip $ sdeclArgs d
         typs' <- mapM checkSinType typs
         let d' = d {sdeclArgs =zip args typs'} { sdeclType = ty'}
-        (Decl p x tt) <- typecheckDecl d'
+        (Decl p x tt) <- typecheckDecl d' >>= \d -> return $ fromJust d
         te <- runEval t tt
         addDecl (Decl p x te)
-handleDecl _ d@SType {} = do
-      let n=sinTypeName d
-          v=sinTypeVal d
-      res <- lookupSinTy n
-      case res of
-          Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
-          Nothing -> do v'<-checkSinType v
-                        addSinType n v'
-
-
-
+handleDecl _ d@SType {} = typecheckDecl d >> return ()
 
 data Command = Compile CompileForm
              | PPrint String
@@ -371,7 +373,7 @@ ccFile :: MonadFD4 m => FilePath -> m()
 ccFile filePath = do 
   case endBy ".fd4" filePath of 
     [path] -> do ds <- loadFile filePath
-                 ds' <- mapM typecheckDecl ds     
+                 ds' <- mapM typecheckDecl ds >>= \xs -> return $ map fromJust $ filter isJust xs                     
                  let funcWithoutArgs = map (\d -> (sdeclName d ,isFuncWithouArgs d)) ds   
                      funcNamesWithoutArgs = filter (\(d,b)-> b) funcWithoutArgs          
                      info = map (\d -> (sdeclName d,
