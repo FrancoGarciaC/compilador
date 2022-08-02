@@ -95,6 +95,11 @@ freshen n = do i <- get
 getClosureName :: Int -> Name 
 getClosureName n = "clo" ++ show n
 
+
+-- declaracion
+-- es un valor?
+-- argumentos 
+-- una lista de funciones sin argumentos explicitos
 fromStateToList :: Decl Term -> (Bool,[Name]) -> [Name] -> [IrDecl]
 fromStateToList d info fwa = 
   let dName = declName d

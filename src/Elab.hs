@@ -11,10 +11,12 @@ Este módulo permite elaborar términos y declaraciones para convertirlas desde
 fully named (@NTerm) a locally closed (@Term@) 
 -}
 
-module Elab ( elab, elab_decl,desugar,desugar',buildType) where
+module Elab ( elab, elab_decl,desugar,desugar',desugarTypeList) where
 
 import Lang
 import Subst
+import MonadFD4
+
 
 -- | 'elab' transforma variables ligadas en índices de de Bruijn
 -- en un término dado. 
@@ -45,23 +47,14 @@ elab_decl :: Decl NTerm -> Decl Term
 elab_decl = fmap elab
 
 
--- se consideran listas con al menos un argumento
-buildType :: [(Name,Ty)] -> Ty
-buildType [(_,t)] = t
-buildType ((_,t):ts) = FunTy t  $ buildType ts
+-- desugarea sinonimos de tipo
+desugarTypeList :: MonadFD4 m => [Ty] -> m Ty
+desugarTypeList [t] = desugarType t
+desugarTypeList (t:ts) = do t' <- desugarType t 
+                            ts' <- desugarTypeList ts    
+                            return $ FunTy t' ts'
 
-
-
--- convert::[(Name,Ty)]->Ty->Ty 
--- convert e (SinTy n) = case lookup n e of 
---                         Just t -> t
---                         Nothing -> error "Esto no deberia pasar"
--- convert e (FunTy t ty) = FunTy (convert e t) (convert e ty)
--- convert e NatTy  = NatTy                         
-
-
-
-desugar ::SDecl STerm ->  Decl NTerm
+desugar :: MonadFD4 m => SDecl STerm -> m (Decl NTerm)
 desugar decl =
                let  pos = sdeclPos decl
                     name = sdeclName decl
@@ -71,48 +64,74 @@ desugar decl =
                     typ  = sdeclType decl
                     rec = sdeclRec decl
                in  case args of
-                    [] -> let body'= desugar' body
-                          in Decl pos name body'
-                    _ -> if not rec then let body'= desugar' $ Slam info args body
-                                         in Decl pos name body'
-                                 else  case args of
-                                          [(x,tx)] -> let body'= desugar' $ SFix info name (FunTy tx typ) [(x,tx)] body
-                                                      in Decl pos name body'
+                    [] -> do body' <- desugar' body
+                             return $ Decl pos name body'
+                    _ -> if not rec then do body' <- desugar' $ Slam info args body
+                                            return $ Decl pos name body'
+                         
+                         else  case args of
+                                  [(x,tx)] -> do body' <- desugar' $ SFix info name (FunTy tx typ) [(x,tx)] body
+                                                 return $ Decl pos name body'
 
-                                          _ -> let  tailArgs = tail args
-                                                    fun = Slam info tailArgs body
-                                                    ls = tailArgs++[("ret",typ)]
-                                                    decl' = SDecl pos rec name [head args] (buildType ls) fun
-                                               in desugar decl'
-
-
-
+                                  _ -> do let  tailArgs = tail args
+                                               slam = Slam info tailArgs body
+                                          typeNoSugar <- desugarTypeList (snd $ unzip tailArgs) ++ [typ]
+                                          let decl' = SDecl pos rec name [head args] typeNoSugar slam
+                                          desugar decl'
 
 
-desugar' :: STerm -> NTerm
-desugar' (Sv i v) = V i v
-desugar' (SConst i c) = Const i (desugar'' c)
-desugar' (SPrint i str stm) = Print i str (desugar' stm)
-desugar' (Slam i [(n, t)] stm) = Lam i n t $ desugar' stm
-desugar' (Slam i ((n,t):ls) stm) = Lam i n t $ desugar' (Slam i ls stm)
-desugar' (SBinaryOp i op stm1 stm2) = BinaryOp i op (desugar' stm1) (desugar' stm2)
-desugar' (SApp i stm1 stm2) = App i (desugar' stm1) (desugar' stm2)
-desugar' (SFix i f tr [(n,ty)] t) = Fix i f tr n ty (desugar' t)
-desugar' (SFix i f tr ((n,ty):ns) t ) = let fun = Slam i ns t
-                              in error $ show tr
-desugar' (SIfZ i c tt tf) = IfZ i (desugar' c) (desugar' tt) (desugar' tf)
-desugar' q@(SLet i rec n ls t stmDef stmBody) =
-       let def = desugar' stmDef
-           body = desugar' stmBody
-       in case ls of
-            [] -> Let i n  t def body
-            _ -> if not rec then let fun = Slam i ls stmDef
-                                 in Let i n (buildType $ ls ++ [("",t)]) (desugar' fun) body
+desugar' :: MonadFD4 m => STerm -> m NTerm
+desugar' (Sv i v) = return $ V i v
+
+desugar' (SConst i c) = return $ Const i $ desugar'' c
+
+desugar' (SPrint i str stm) =  do stm' <- desugar' stm
+                                  return $ Print i str stm'
+
+desugar' (Slam i m@[(n, t)] stm) = do typeNoSugar <- desugarTypeList m  
+                                      stm' <- desugar' stm
+                                      return $ Lam i n typeNoSugar stm'
+
+desugar' (Slam i ((n,t):ls) stm) = do stm' <- desugar' $ Slam i ls stm
+                                      return $ Lam i n t stm'
+
+desugar' (SBinaryOp i op stm1 stm2) = do stm1' <- desugar' stm1
+                                         stm2' <- desugar' stm2
+                                         return $ BinaryOp i op stm1' stm2'
+
+                                   
+desugar' (SApp i stm1 stm2) = do stm1' <- desugar' stm1 
+                                 stm2' <- desugar' stm2
+                                 return $ App i stm1' stm2'
+
+desugar' (SFix i f tr [(n, sty)] t) = do t' <- desugar' t
+                                         ty <- desugarType sty
+                                         return $ Fix i f tr n ty t'
+
+desugar' (SFix i f tr ((n,ty):ns) t ) = do let fun = Slam i ns t
+                                           error $ "Era este caso " ++ show tr
+
+desugar' (SIfZ i c tt tf) = do c' <- desugar' c
+                               tt' <- desugar' tt
+                               tf' <- desugar' tf
+                               return $ IfZ i c' tt' tf'
+
+desugar' q@(SLet i rec n ls t stmDef stmBody) = do
+       def <- desugar' stmDef
+       body <- desugar' stmBody
+       typeNoSugar <- desugarTypeList $ (snd $ unzip ls) ++ [t]
+       case ls of
+            [] -> return $ Let i n  typeNoSugar def body
+            _ -> if not rec then do let slam = Slam i ls stmDef
+                                        types = snd $ unzip ls
+                                    slam' <- desugar' slam
+                                    return $ Let i n typeNoSugar slam' body
                  else case ls of
-                         [(a,ta)] ->let fix= Fix i n t a ta def
-                                    in Let i n (FunTy ta t) fix body
-                         ((a,ta):ts)->  let fun=Slam i ls stmDef
-                                        in desugar' $ SLet i rec n [(a,ta)] (FunTy (buildType ts) t) fun stmBody
+                         [(a,ta)] -> do taNoSugar <- desugarType ta 
+                                        let fix = Fix i n t a taNoSugar def
+                                        return $ Let i n typeNoSugar fix body
+                         ((a,ta):ts)-> do let fun = Slam i ls stmDef
+                                          desugar' $ SLet i rec n [(a,ta)] typeNoSugar fun stmBody
 
-desugar''::SConst->Const
+desugar'':: SConst->Const
 desugar'' (SCNat n) = CNat n

@@ -1,8 +1,8 @@
 
+type pepe = Nat
+type funNat = pepe -> pepe
+let rec map (x : pepe) (f : funNat) : Nat = ifz x then x else let res : Nat = f x in map (x-1) f
 
-type funNat = Nat -> Nat 
-let rec map (x : Nat) (f : funNat) : Nat = ifz x then x else let res : Nat = f x in map (x-1) f
+let mapF (x y : pepe) : pepe = print "x+y:=" (x+y)
 
-let mapF (x y : Nat) : Nat = print "x+y:=" (x+y)
-
-let final : Nat = map 20 (mapF 5)
+let final : pepe = map 20 (mapF 5)

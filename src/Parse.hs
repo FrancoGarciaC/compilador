@@ -32,7 +32,7 @@ import Text.ParserCombinators.Parsec.Language --( GenLanguageDef(..), emptyDef )
 import qualified Text.Parsec.Expr as Ex
 import Text.Parsec.Expr (Operator, Assoc)
 import Control.Monad.Identity (Identity)
-import Elab (buildType)
+import Elab (desugarTypeList)
 import Data.Either
 import Data.Text.Internal.Fusion.Common (concat)
 import qualified Data.Foldable

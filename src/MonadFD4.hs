@@ -31,7 +31,7 @@ module MonadFD4 (
   addTy,
   catchErrors,
   getSinTypEnv,
-  checkSinType,
+  desugarType,
   addSinType,
   MonadFD4,
   module Control.Monad.Except,
@@ -163,13 +163,13 @@ addSinType n t = modify (\s -> s { tySin = (n,t) : tySin s })
 
 
 --Chequea si un tipo t esta bien definido y lo convierte si usa sinonimos
-checkSinType::MonadFD4 m => Ty-> m Ty
-checkSinType NatTy = return NatTy 
-checkSinType (SinTy n) = do e <- getSinTypEnv
-                            let val = lookup n e
-                            case val of 
+desugarType::MonadFD4 m => Ty-> m Ty
+desugarType NatTy = return NatTy 
+desugarType (SinTy n) = do e <- getSinTypEnv
+                           let val = lookup n e
+                           case val of 
                                Nothing -> failFD4 $ "El tipo "++n++" no esta definido"                                             
                                Just t -> return t
-checkSinType (FunTy t ty) = do t'<-checkSinType t
-                               ty'<-checkSinType ty
-                               return (FunTy t' ty')
+desugarType (FunTy t ty) = do t'<-desugarType t
+                              ty'<-desugarType ty
+                              return (FunTy t' ty')

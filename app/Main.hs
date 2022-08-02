@@ -33,7 +33,7 @@ import Global ( GlEnv(..) )
 import Errors
 import Lang
 import Parse ( P, stm, program, runP,declOrStm)
-import Elab ( elab,desugar,desugar', buildType)
+import Elab ( elab,desugar,desugar', desugarTypeList)
 import Eval ( eval )
 import PPrint ( pp , ppTy, ppDecl )
 import MonadFD4
@@ -198,15 +198,14 @@ parseIO filename p x = case runP p x filename of
 
 typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl Term))
 typecheckDecl decl@SDecl {} = do
-        tyDecl <- checkSinType $ buildType $ sdeclArgs decl ++  [("",sdeclType decl)]
-        printFD4 $ show $ sdeclName decl
-        printFD4 $ show tyDecl
-        let  (Decl _ _ t) = desugar decl
-             p = sdeclPos decl
+        fullType <- desugarTypeList $ sdeclArgs decl ++  [("",sdeclType decl)]
+        typeNoSugar <- desugarType fullType        
+        (Decl _ _ t) <- desugar decl        
+        printFD4 $ "term" ++ show t
+        let  p = sdeclPos decl
              x = sdeclName decl    
-             dd = (Decl p x (elab t))
-        tcDecl tyDecl dd
-        printFD4 "siii"
+             dd = (Decl p x (elab t))        
+        tcDecl typeNoSugar dd
         return $ Just dd
 
 typecheckDecl d@SType {} = do
@@ -215,7 +214,7 @@ typecheckDecl d@SType {} = do
       res <- lookupSinTy n
       case res of
           Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
-          Nothing -> do v'<-checkSinType v                        
+          Nothing -> do v'<-desugarType v                        
                         addSinType n v'
                         return Nothing
 
@@ -239,9 +238,9 @@ bytecodeRun filePath = do bc <- liftIO $ bcRead filePath
 
 handleDecl ::  MonadFD4 m => TypeEval -> SDecl STerm -> m ()
 handleDecl t d@SDecl {} = do
-        ty' <- checkSinType $ sdeclType d
+        ty' <- desugarType $ sdeclType d
         let (args,typs) = unzip $ sdeclArgs d
-        typs' <- mapM checkSinType typs
+        typs' <- mapM desugarType typs
         let d' = d {sdeclArgs =zip args typs'} { sdeclType = ty'}
         (Decl p x tt) <- typecheckDecl d' >>= \d -> return $ fromJust d
         te <- runEval t tt
@@ -333,7 +332,7 @@ compilePhrase e x =   do
 
 handleTerm ::  MonadFD4 m => TypeEval -> STerm -> m ()
 handleTerm e term = do
-         let t = desugar' term
+         t <- desugar' term
          let tt = elab t
          s <- get
          ty <- tc tt (tyEnv s)
@@ -345,7 +344,8 @@ printPhrase   :: MonadFD4 m => String -> m ()
 printPhrase x =
   do
     x' <- parseIO "<interactive>" stm x
-    let ex = elab (desugar' x')
+    tt <- desugar' x'
+    let ex = elab tt
     t  <- case x' of
            (Sv p f) -> maybe ex id <$> lookupDecl f
            _       -> return ex
@@ -358,7 +358,8 @@ typeCheckPhrase :: MonadFD4 m => String -> m ()
 typeCheckPhrase x = do
          t <- parseIO "<interactive>" stm x
          e <- getSinTypEnv
-         let tt = elab (desugar' t)
+         t' <- desugar' t
+         let tt = elab t'
          s <- get         
          ty <- tc tt (tyEnv s)        
          printFD4 (ppTy ty)
@@ -373,27 +374,50 @@ ccFile :: MonadFD4 m => FilePath -> m()
 ccFile filePath = do 
   case endBy ".fd4" filePath of 
     [path] -> do ds <- loadFile filePath
-                 ds' <- mapM typecheckDecl ds >>= \xs -> return $ map fromJust $ filter isJust xs                     
-                 let funcWithoutArgs = map (\d -> (sdeclName d ,isFuncWithouArgs d)) ds   
-                     funcNamesWithoutArgs = filter (\(d,b)-> b) funcWithoutArgs          
-                     info = map (\d -> (sdeclName d,
-                                        (checkIfIsVal $ buildType $ sdeclArgs d ++ [("",sdeclType d)],
+                 ds' <- mapM typecheckDecl ds >>= \xs -> return $ map fromJust $ filter isJust xs
+
+                 -- filtrar sinonimos de tipo
+                 let ds2 = filter isSugarDecl ds
+
+                 -- mapear cada declaracion con su tipo                  
+                 typeMap <- mapM (\d -> desugarTypeList (sdeclArgs d ++ [("",sdeclType d)]) >>= \t ->
+                                        return (sdeclName d,t) ) ds2
+
+                 
+                 let   -- definir cuales son funciones sin argumentos explicitos
+                       funcWithoutArgs = filter (\d ->  isFuncWithoutArgs d typeMap) ds2 
+
+                       funcNamesWithoutArgs = map (\d -> sdeclName d) funcWithoutArgs          
+                       info = map (\d ->  let declName = sdeclName d in
+                                        (declName,
+                                         (checkIfIsVal $ fromJust $ lookup declName typeMap,
                                         map (\x -> fst x) $ sdeclArgs d))
-                                        ) ds                        
-                     decls = concat $ map (\d ->  fromStateToList d 
-                                                                  (fromJust $ lookup (declName d) info)
-                                                                  (fst $ unzip funcNamesWithoutArgs)
-                                                                  ) ds'   
-                     decls' = IrDecls decls                      
+                                        ) ds2              
+
+                       decls = concat $ map (\d ->  fromStateToList d 
+                                                                    (fromJust $ lookup (declName d) info)
+                                                                    funcNamesWithoutArgs
+                                                                     ) ds'   
+
+                       decls' = IrDecls decls                      
                  liftIO $ writeFile (path ++ ".c") (ir2C decls')
     _ -> failFD4 "Error: el archivo debe tener extension .fd4" 
 
-    where checkIfIsVal NatTy  = True
-          checkIfIsVal _  = False
-          isFuncWithouArgs d = if checkIfIsVal $ buildType $ sdeclArgs d ++ [("",sdeclType d)] then False
-                               else null $ sdeclArgs d              
 
-    
-                                       
-   
+checkIfIsVal :: Ty -> Bool
+checkIfIsVal NatTy  = True
+checkIfIsVal _  = False
+
+type TyMap = [(Name,Ty)]
+
+isFuncWithoutArgs :: SDecl STerm -> TyMap -> Bool          
+isFuncWithoutArgs d m =  let n = sdeclName d in 
+                         if checkIfIsVal (fromJust $ lookup n m) then False
+                         else null $ sdeclArgs d              
+
+
+
+isSugarDecl SDecl {} = True   
+isSugarDecl _ = False
+
   

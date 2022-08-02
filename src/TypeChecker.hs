@@ -101,11 +101,10 @@ tcDecl :: MonadFD4 m  => Ty -> Decl Term -> m ()
 tcDecl tyDecl (Decl p n t) = do
     --chequear si el nombre ya está declarado
     mty <- lookupTy n    
-    s <- get    
+    s <- get        
     case mty of
-         Nothing -> do  --no está declarado 
-                     printFD4 $ "term " ++ show t
-                     ty <- tc t (tyEnv s)    
+         Nothing -> do  --no está declarado                        
+                     ty <- tc t (tyEnv s)                                             
                      expect tyDecl ty t
                      addTy n ty
          Just _  -> failPosFD4 p $ n ++" ya está declarado"
