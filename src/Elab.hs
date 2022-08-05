@@ -75,9 +75,10 @@ desugar decl =
 
                                   _ -> do let  tailArgs = tail args
                                                slam = Slam info tailArgs body
-                                          typeNoSugar <- desugarTypeList (snd $ unzip tailArgs) ++ [typ]
+                                          typeNoSugar <- desugarTypeList $ (snd $ unzip tailArgs) ++ [typ]
                                           let decl' = SDecl pos rec name [head args] typeNoSugar slam
                                           desugar decl'
+
 
 
 desugar' :: MonadFD4 m => STerm -> m NTerm
@@ -88,12 +89,13 @@ desugar' (SConst i c) = return $ Const i $ desugar'' c
 desugar' (SPrint i str stm) =  do stm' <- desugar' stm
                                   return $ Print i str stm'
 
-desugar' (Slam i m@[(n, t)] stm) = do typeNoSugar <- desugarTypeList m  
-                                      stm' <- desugar' stm
-                                      return $ Lam i n typeNoSugar stm'
+desugar' (Slam i [(n, st)] stm) = do t <- desugarType st  
+                                     stm' <- desugar' stm
+                                     return $ Lam i n t stm'
 
-desugar' (Slam i ((n,t):ls) stm) = do stm' <- desugar' $ Slam i ls stm
-                                      return $ Lam i n t stm'
+desugar' (Slam i ((n,st):ls) stm) = do stm' <- desugar' $ Slam i ls stm
+                                       t <- desugarType st
+                                       return $ Lam i n t stm'
 
 desugar' (SBinaryOp i op stm1 stm2) = do stm1' <- desugar' stm1
                                          stm2' <- desugar' stm2
@@ -104,9 +106,10 @@ desugar' (SApp i stm1 stm2) = do stm1' <- desugar' stm1
                                  stm2' <- desugar' stm2
                                  return $ App i stm1' stm2'
 
-desugar' (SFix i f tr [(n, sty)] t) = do t' <- desugar' t
-                                         ty <- desugarType sty
-                                         return $ Fix i f tr n ty t'
+desugar' (SFix i f str [(n, sty)] t) = do t' <- desugar' t
+                                          ty <- desugarType sty
+                                          tr <- desugarType str
+                                          return $ Fix i f tr n ty t'
 
 desugar' (SFix i f tr ((n,ty):ns) t ) = do let fun = Slam i ns t
                                            error $ "Era este caso " ++ show tr

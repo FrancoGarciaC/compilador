@@ -198,7 +198,7 @@ parseIO filename p x = case runP p x filename of
 
 typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl Term))
 typecheckDecl decl@SDecl {} = do
-        fullType <- desugarTypeList $ sdeclArgs decl ++  [("",sdeclType decl)]
+        fullType <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
         typeNoSugar <- desugarType fullType        
         (Decl _ _ t) <- desugar decl        
         printFD4 $ "term" ++ show t
@@ -380,9 +380,9 @@ ccFile filePath = do
                  let ds2 = filter isSugarDecl ds
 
                  -- mapear cada declaracion con su tipo                  
-                 typeMap <- mapM (\d -> desugarTypeList (sdeclArgs d ++ [("",sdeclType d)]) >>= \t ->
+                 typeMap <- mapM (\d -> let argsTypes = snd $ unzip $ sdeclArgs d in 
+                                        desugarTypeList (argsTypes ++ [sdeclType d]) >>= \t ->
                                         return (sdeclName d,t) ) ds2
-
                  
                  let   -- definir cuales son funciones sin argumentos explicitos
                        funcWithoutArgs = filter (\d ->  isFuncWithoutArgs d typeMap) ds2 
