@@ -198,10 +198,8 @@ parseIO filename p x = case runP p x filename of
 
 typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl Term))
 typecheckDecl decl@SDecl {} = do
-        fullType <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
-        typeNoSugar <- desugarType fullType        
+        typeNoSugar <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
         (Decl _ _ t) <- desugar decl        
-        printFD4 $ "term" ++ show t
         let  p = sdeclPos decl
              x = sdeclName decl    
              dd = (Decl p x (elab t))        

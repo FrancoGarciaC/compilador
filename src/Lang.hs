@@ -80,7 +80,7 @@ data Stm info var =
   | SIfZ info (Stm info var) (Stm info var) (Stm info var)
   deriving (Show,Functor)
   
-
+data TTerm = T Ty Term
 
 data Tm info var =
     V info var
