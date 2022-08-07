@@ -100,7 +100,7 @@ getClosureName n = "clo" ++ show n
 -- es un valor?
 -- argumentos 
 -- una lista de funciones sin argumentos explicitos
-fromStateToList :: Decl Term -> (Bool,[Name]) -> [Name] -> [IrDecl]
+fromStateToList :: Decl TTerm -> (Bool,[Name]) -> [Name] -> [IrDecl]
 fromStateToList d info fwa = 
   let dName = declName d
       (term, freeVars) = case declBody d of 

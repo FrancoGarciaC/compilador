@@ -187,8 +187,9 @@ typecheckFile opt f = do
     printFD4 $"Chequeando "++f
     printFD4 $ "Opt:" ++ show opt
     decls <- loadFile f
-    ppterms <- mapM (typecheckDecl >=> (optDeclaration opt).fromJust >=> ppDecl) decls    
-    mapM_ printFD4 ppterms
+    error "falta corregir"
+    {- ppterms <- mapM (typecheckDecl >=> (optDeclaration opt).fromJust >=> ppDecl) decls    
+    mapM_ printFD4 ppterms -}
 
 parseIO ::  MonadFD4 m => String -> P a -> String -> m a
 parseIO filename p x = case runP p x filename of
@@ -196,15 +197,14 @@ parseIO filename p x = case runP p x filename of
                   Right r -> return r
 
 
-typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl Term))
+typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl TTerm))
 typecheckDecl decl@SDecl {} = do
         typeNoSugar <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
-        (Decl _ _ t) <- desugar decl        
-        let  p = sdeclPos decl
-             x = sdeclName decl    
-             dd = (Decl p x (elab t))        
-        tcDecl typeNoSugar dd
-        return $ Just dd
+        (Decl p n t) <- desugar decl        
+        let  dd = (Decl p n (elab t))        
+        tterm <- tcDecl typeNoSugar dd
+        let dd' = Decl p n tterm
+        return $ Just dd'
 
 typecheckDecl d@SType {} = do
       let n=sinTypeName d
@@ -221,10 +221,11 @@ typecheckDecl d@SType {} = do
 bytecompileFile :: MonadFD4 m => FilePath -> m ()
 bytecompileFile filePath = do ds <- loadFile filePath
                               ds' <- mapM typecheckDecl ds >>= \xs -> return $ map fromJust $ filter isJust xs
-                              bc <- bytecompileModule ds'                              
+                              error "falta corregir"
+                              {- bc <- bytecompileModule ds'                              
                               case endBy ".fd4" filePath of 
                                 [path] -> liftIO $ bcWrite bc $ path ++ ".byte"
-                                _ -> failFD4 "Error: el archivo debe tener extension .fd4"        
+                                _ -> failFD4 "Error: el archivo debe tener extension .fd4" -}
 
 bytecodeRun :: MonadFD4 m => FilePath -> m()
 bytecodeRun filePath = do bc <- liftIO $ bcRead filePath
@@ -240,9 +241,10 @@ handleDecl t d@SDecl {} = do
         let (args,typs) = unzip $ sdeclArgs d
         typs' <- mapM desugarType typs
         let d' = d {sdeclArgs =zip args typs'} { sdeclType = ty'}
-        (Decl p x tt) <- typecheckDecl d' >>= \d -> return $ fromJust d
+        error "falta corregir"
+        {- (Decl p x tt) <- typecheckDecl d' >>= \d -> return $ fromJust d
         te <- runEval t tt
-        addDecl (Decl p x te)
+        addDecl (Decl p x te) -}
 handleDecl _ d@SType {} = typecheckDecl d >> return ()
 
 data Command = Compile CompileForm
@@ -333,7 +335,8 @@ handleTerm e term = do
          t <- desugar' term
          let tt = elab t
          s <- get
-         ty <- tc tt (tyEnv s)
+         tt' <- tc tt (tyEnv s)
+         let ty = getInfo tt'
          te <- runEval e tt
          ppte <- pp te
          printFD4 (ppte ++ " : " ++ ppTy ty)
@@ -359,7 +362,8 @@ typeCheckPhrase x = do
          t' <- desugar' t
          let tt = elab t'
          s <- get         
-         ty <- tc tt (tyEnv s)        
+         tt' <- tc tt (tyEnv s)        
+         let ty = getInfo tt'
          printFD4 (ppTy ty)
 
 

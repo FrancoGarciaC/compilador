@@ -79,58 +79,73 @@ tc :: MonadFD4 m => Term         -- ^ término a chequear
 tc (V p (Bound _)) _ = failPosFD4 p "typecheck: No deberia haber variables Bound"
 tc (V p t@(Free n)) bs = case lookup n bs of
                            Nothing -> failPosFD4 p $ "Variable no declarada "++ppName n
-                           Just ty -> return $ T ty t
-tc (V p (t@Global n)) bs = case lookup n bs of
+                           Just ty -> return $ V ty t 
+
+tc (V p t@(Global n)) bs = case lookup n bs of
                             Nothing -> failPosFD4 p $ "Variable no declarada "++ppName n
-                            Just ty -> return $ T ty t
-tc (Const _ t@(CNat n)) _ = return $ T NatTy t
+                            Just ty -> return $ V ty t
+tc (Const _ t@(CNat n)) _ = return $ Const NatTy t
 
-tc print@(Print p str t) bs = do 
-      ty <- tc t bs
+tc (Print p str t) bs = do 
+      t' <- tc t bs
+      let ty = getInfo t'
       expect NatTy ty t
-      return $ T ty print
+      return $ Print ty str t'
 
-tc ifz@(IfZ p c t t') bs = do
-       tyc  <- tc c bs
+tc (IfZ p c t1 t2) bs = do
+       c' <- tc c bs
+       let tyc = getInfo c'
        expect NatTy tyc c
-       tyt  <- tc t bs
-       tyt' <- tc t' bs
-       expect tyt tyt' t'
-       return $ T tyT ifz
+       t1' <- tc t1 bs
+       t2' <- tc t2 bs
+       let ty1 = getInfo t1'
+           ty2 = getInfo t2'
+       expect ty1 ty2 t2
+       return $ IfZ ty1 c' t1' t2'
 
-tc lam@(Lam p v ty t) bs = do         
-         ty' <- tc (open v t) ((v,ty):bs)
-         return $ T (FunTy ty ty') lam
+tc (Lam p v ty t) bs = do         
+         t' <- tc (open v t) ((v,ty):bs)
+         let tyl = getInfo t'
+         return $ Lam (FunTy ty tyl) v ty t' 
 
-tc app@(App p t u) bs = do
-         tyt <- tc t bs
+tc (App p t u) bs = do
+         t' <- tc t bs
+         let tyt = getInfo t'
          (dom,cod) <- domCod t tyt         
-         tyu <- tc u bs      
-         expect dom tyu u
-         return $ T cod app
-tc fix@(Fix p f fty x xty t) bs = do         
+         u' <- tc u bs
+         let uty = getInfo u'      
+         expect dom uty u
+         return $ App cod t' u' 
+
+         
+tc (Fix p f fty x xty t) bs = do         
          (dom, cod) <- domCod (V p (Free f)) fty         
          when (dom /= xty) $ do
            failPosFD4 p "El tipo del argumento de un fixpoint debe coincidir con el \
                         \dominio del tipo de la función"
          let t' = openN [f, x] t
-         ty' <- tc t' ((x,xty):(f,fty):bs)
-         expect cod ty' t'
-         return $ T fty fix
+         t'' <- tc t' ((x,xty):(f,fty):bs)
+         let ty'' = getInfo t''
+         expect cod ty'' t'
+         return $ Fix fty f fty x xty t''
 
-tc lett@(Let p v ty def t) bs = do         
-         ty' <- tc def bs        
+tc (Let p v ty def t) bs = do         
+         def' <- tc def bs
+         let ty' = getInfo def'        
          expect ty ty' def
-         letTy <- tc (open v t) ((v,ty):bs)
-         return $ T letTy lett
+         t' <- tc (open v t) ((v,ty):bs)
+         let letTy = getInfo t'
+         return $ Let letTy v ty def' t'
 
 
-tc binop@(BinaryOp p op t u) bs = do
-         tty <- tc t bs         
+tc (BinaryOp p op t u) bs = do
+         t' <- tc t bs
+         let tty = getInfo t'         
          expect NatTy tty t
-         uty <- tc t bs
+         u' <- tc t bs
+         let uty = getInfo u'
          expect NatTy uty u
-         return $ T NatTy binop
+         return $ BinaryOp NatTy op t' u'
 
 
          
@@ -162,15 +177,17 @@ domCod t ty = typeError t $ "Se esperaba un tipo función, pero se obtuvo: " ++ 
 
 -- | 'tcDecl' chequea el tipo de una declaración
 -- y la agrega al entorno de tipado de declaraciones globales
-tcDecl :: MonadFD4 m  => Ty -> Decl Term -> m ()
+tcDecl :: MonadFD4 m  => Ty -> Decl Term -> m TTerm
 tcDecl tyDecl (Decl p n t) = do
     --chequear si el nombre ya está declarado
     mty <- lookupTy n    
     s <- get        
     case mty of
-         Nothing -> do  ty <- tc t (tyEnv s)                                             
+         Nothing -> do  t' <- tc t (tyEnv s)   
+                        let ty = getInfo t' :: Ty                                          
                         expect tyDecl ty t
                         addTy n ty
+                        return t'
          Just _  -> failPosFD4 p $ n ++" ya está declarado"
 
     

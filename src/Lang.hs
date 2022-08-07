@@ -80,7 +80,6 @@ data Stm info var =
   | SIfZ info (Stm info var) (Stm info var) (Stm info var)
   deriving (Show,Functor)
   
-data TTerm = T Ty Term
 
 data Tm info var =
     V info var
@@ -102,6 +101,8 @@ data Tm info var =
 type STerm = Stm Pos Name  -- Terminos con sintactic sugar
 type NTerm = Tm Pos Name   -- ^ 'Tm' tiene 'Name's como variables ligadas y libres y globales, guarda posición
 type Term = Tm Pos Var     -- ^ 'Tm' con índices de De Bruijn como variables ligadas, y nombres para libres y globales, guarda posición
+type TTerm = Tm Ty Var
+
 
 data Var =
     Bound !Int

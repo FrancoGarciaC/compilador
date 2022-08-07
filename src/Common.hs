@@ -19,7 +19,6 @@ type Column = Int
 data Pos = NoPos             -- ^ No hay info de posición
          | Pos !Line !Column -- ^ Posición en un archivo.
 
-data PosType = Pos !Line !Column Ty         
 
 instance Semigroup Pos where
   i <> NoPos = i
