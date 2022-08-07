@@ -19,9 +19,9 @@ import Common
 import Data.List ( elemIndex )
 
 
-varChanger :: (Int -> Pos -> Name -> Term) --que hacemos con las variables localmente libres
-           -> (Int -> Pos -> Int ->  Term) --que hacemos con los indices de De Bruijn
-           -> Term -> Term
+varChanger :: (Int -> info -> Name -> Tm info Var) --que hacemos con las variables localmente libres
+           -> (Int -> info -> Int ->  Tm info Var) --que hacemos con los indices de De Bruijn
+           -> Tm info Var -> Tm info Var
 varChanger local bound t = go 0 t where
   go n   (V p (Bound i)) = bound n p i
   go n   (V p (Free x)) = local n p x 
@@ -39,7 +39,7 @@ varChanger local bound t = go 0 t where
 -- en `t` (que debe ser localmente cerrado) por los nombres libres en la
 -- lista. La variable Bound 0 pasa a ser Free n0, y etc. Estos nombres
 -- deben ser frescos en el término para que no ocurra shadowing.
-openN :: [Name] -> Term -> Term
+openN :: [Name] -> Tm info Var -> Tm info Var
 openN ns = varChanger (\_ p n -> V p (Free n)) bnd where
    bnd depth p i | i <  depth = V p (Bound i)
                  | i >= depth && i < depth + nns =
@@ -50,7 +50,7 @@ openN ns = varChanger (\_ p n -> V p (Free n)) bnd where
 
 -- `closeN [nn,..,n0] t` es la operación inversa a open. Reemplaza
 -- las variables `Free ni` por la variable ligada `Bound i`.
-closeN :: [Name] -> Term -> Term
+closeN :: [Name] -> Tm info Var -> Tm info Var
 closeN ns = varChanger lcl (\_ p i -> V p (Bound i))
    where lcl depth p y =
             case elemIndex y nsr of
@@ -71,24 +71,24 @@ closeN ns = varChanger lcl (\_ p i -> V p (Bound i))
 -- por los términos correspondientes. La ventaja es que no hace falta
 -- generar ningún nombre, y por lo tanto evitamos la necesidad de
 -- nombres frescos.
-substN :: [Term] -> Term -> Term
+substN :: [Tm info Var] -> Tm info Var -> Tm info Var
 substN ns = varChanger (\_ p n -> V p (Free n)) bnd
    where bnd depth p i 
              | i <  depth = V p (Bound i)
              | i >= depth && i < depth + nns
                 = nsr !! (i - depth)
-             | otherwise = abort $ "substN: M is not LC" ++ " depth:" ++ show depth ++ " i:" ++ show i ++ " ns: " ++ show ns
+             | otherwise = abort $ "substN: M is not LC" ++ " depth:" -- ++ show depth ++ " i:" ++ show i ++ " ns: " ++ show ns
              
          nns = length ns
          nsr = reverse ns
 
 -- Algunas definiciones auxiliares:
 
-subst :: Term -> Term -> Term
+subst :: Tm info Var -> Tm info Var -> Tm info Var
 subst n m = substN [n] m
 
-close :: Name -> Term -> Term
+close :: Name -> Tm info Var -> Tm info Var
 close nm = closeN [nm]
 
-open :: Name -> Term -> Term
+open :: Name -> Tm info Var -> Tm info Var
 open x t = openN [x] t

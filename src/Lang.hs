@@ -26,6 +26,7 @@ data Ty =
       NatTy
     | FunTy Ty Ty
     | SinTy Name
+    | Closure
     deriving (Show,Eq)
 
 type Name = String

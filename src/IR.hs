@@ -2,14 +2,14 @@ module IR where
 
 import Lang
 
-data Ir = IrVar Name
-        | IrGlobal Name
-        | IrCall Ir [Ir]
-        | IrConst Const
-        | IrPrint String Ir
-        | IrBinaryOp BinaryOp Ir Ir 
-        | IrLet Name Ir Ir
-        | IrIfZ Ir Ir Ir
+data Ir info  = IrVar Ty Name
+        | IrGlobal Ty Name
+        | IrCall Ty Ir [Ir]
+        | IrConst Ty Const
+        | IrPrint Ty  String Ir
+        | IrBinaryOp Ty BinaryOp Ir Ir 
+        | IrLet Ty Name Ir Ir
+        | IrIfZ Ty Ir Ir Ir
         | MkClosure Name [Ir]
         | IrAccess Ir Int
   deriving Show

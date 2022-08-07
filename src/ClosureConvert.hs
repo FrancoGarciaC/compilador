@@ -9,30 +9,30 @@ import Subst(open,openN)
 
 type ClosureState a = StateT Int (Writer [IrDecl]) a
 
-closureConvert :: Term -> String -> [Name] -> [Name] -> ClosureState Ir
+closureConvert :: TTerm -> String -> [Name] -> [Name] -> ClosureState Ir
 
-closureConvert (V _ v) f xs fwa = 
+closureConvert (V ty v) f xs fwa = 
       case v of 
-            (Global s) -> return $ IrGlobal s
-            (Free s) -> return $ IrVar s
+            (Global s) -> return $ IrGlobal ty s
+            (Free s) -> return $ IrVar ty s
             t -> errorCase t 
 
-closureConvert (BinaryOp _ op t1 t2) f xs fwa = do 
+closureConvert (BinaryOp ty op t1 t2) f xs fwa = do 
       ir1 <- closureConvert t1 f xs fwa
       ir2 <- closureConvert t2 f xs fwa
-      return $  IrBinaryOp op ir1 ir2 
+      return $  IrBinaryOp ty op ir1 ir2 
 
-closureConvert (IfZ _ tz tt tf) f xs fwa = do 
+closureConvert (IfZ ty tz tt tf) f xs fwa = do 
       ir1 <- closureConvert tz f xs fwa
       ir2 <- closureConvert tt f xs fwa
       ir3 <- closureConvert tf f xs fwa
-      return $ IrIfZ ir1 ir2 ir3 
+      return $ IrIfZ ty ir1 ir2 ir3 
 
-closureConvert (Let _ x _ t1  t2) f xs fwa = do
+closureConvert (Let ty2 x ty1 t1  t2) f xs fwa = do
       let tt = open x t2      
       ir1 <- closureConvert t1 f xs fwa     
       ir2 <- closureConvert tt f (x:xs) fwa
-      return $ IrLet x ir1 ir2
+      return $ IrLet ty1 x ir1 ir2
       
 closureConvert t@(Lam _ x ty t1) f xs fwa = do
       let tt = open x t1
