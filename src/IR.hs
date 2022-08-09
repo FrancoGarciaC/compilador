@@ -2,21 +2,35 @@ module IR where
 
 import Lang
 
-data Ir info  = IrVar Ty Name
+data Ir = IrVar Ty Name
         | IrGlobal Ty Name
-        | IrCall Ty Ir [Ir]
-        | IrConst Ty Const
-        | IrPrint Ty  String Ir
-        | IrBinaryOp Ty BinaryOp Ir Ir 
+        | IrCall Ir [Ir]
+        | IrConst Const
+        | IrPrint String Ir
+        | IrBinaryOp BinaryOp Ir Ir 
         | IrLet Ty Name Ir Ir
         | IrIfZ Ty Ir Ir Ir
         | MkClosure Name [Ir]
         | IrAccess Ir Int
   deriving Show
 
+
+getTypeIr :: Ir -> Ty
+getTypeIr (IrVar ty _) = ty
+getTypeIr (IrGlobal ty _) = ty
+getTypeIr (IrCall _ _) = error "Q se yo"
+getTypeIr (IrConst _) = NatTy
+getTypeIr (IrPrint _ _) = NatTy
+getTypeIr (IrBinaryOp _ _ _) = NatTy
+getTypeIr (IrLet ty _ _ _) = ty
+getTypeIr (IrIfZ ty _ _ _) = ty
+getTypeIr (MkClosure _ _) = ClosureTy
+getTypeIr (IrAccess _ _) = error "No se"
+
 data IrDecl =
     IrFun { irDeclName :: Name
-          , irDeclArgNames :: [Name]
+          , irDeclArgNames :: [(Name,Ty)]
+          , irDeclRetType :: Ty
           , irDeclBody :: Ir
     }
   | IrVal { irDeclName :: Name

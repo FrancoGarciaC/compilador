@@ -393,7 +393,7 @@ ccFile filePath = do
                        info = map (\d ->  let declName = sdeclName d in
                                         (declName,
                                          (checkIfIsVal $ fromJust $ lookup declName typeMap,
-                                        map (\x -> fst x) $ sdeclArgs d))
+                                        sdeclArgs d))
                                         ) ds2              
 
                        decls = concat $ map (\d ->  fromStateToList d 

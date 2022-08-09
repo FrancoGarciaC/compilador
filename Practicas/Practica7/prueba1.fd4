@@ -1,0 +1,2 @@
+let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else (suma m (n-1))+1
+let final : Nat = suma 2 3 

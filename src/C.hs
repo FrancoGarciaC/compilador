@@ -7,9 +7,24 @@ import Data.Text (unpack)
 
 decl2doc :: IrDecl -> Doc a
 decl2doc (IrVal n t) = pretty "void*" <+> name n <> semi
-decl2doc (IrFun n args t) =
-  pretty "void*" <+> name n <+> tupled (map (\x -> pretty "void**" <+> name x) args) <+>
+decl2doc (IrFun n args tyr t) =
+ retTyToDoc tyr <+> name n <+> tupled (map (\(x,t) -> argTytoDoc x t) args) <+>
   braces (nest 2 (line <> pretty "return" <+> voidptr <> parens (ir2doc t) <> semi) <> line)
+
+
+retTyToDoc :: Ty -> Doc a
+retTyToDoc NatTy = pretty "uint64_t"
+retTyToDoc (FunTy _ _) = pretty "void**"
+
+argTytoDoc ::  Name -> Ty -> Doc a
+argTytoDoc n ClosureTy =  let pr = pretty "void** " in   
+                           if n == "" then pr else  pr <+> name n 
+
+argTytoDoc n NatTy = let pr = pretty "uint64_t " in   
+                      if n == "" then pr else  pr <+> name n
+                     
+argTytoDoc n (FunTy x t) =  retTyToDoc t <+> pretty " (* " <+> name n <+> pretty ") (void**, " <+> (argTytoDoc "" x) <+> pretty ")"
+argTytoDoc _ (SinTy _) = error "Esto no debería ocurrir"
 
 fd4Main :: [IrDecl] -> Doc a
 fd4Main xs = pretty "uint64_t* fd4main()" 
@@ -39,13 +54,13 @@ voidptr = parens (pretty "void *")
 ir2doc :: Ir -> Doc a
 ir2doc (IrVar ty n) = name n
 ir2doc (IrGlobal ty n) = name n
-ir2doc (IrCall ty f args) = parens (pretty "(void* (*) (void*, void*))" <+> ir2doc f) <> tupled (map (( voidptr<>) . ir2doc) args)
-ir2doc (IrConst ty (CNat n)) = pretty n
-ir2doc (IrBinaryOp ty Add a b) = u64 <+> ir2doc a <+> pretty "+" <+> u64 <+> ir2doc b
-ir2doc (IrBinaryOp ty Sub a b) = stmts [pretty "fd4_sub" <> tupled [u64 <+> ir2doc a, u64 <+> ir2doc b]]
+ir2doc (IrCall f args) = parens (pretty "(void* (*) (void*, void*))" <+> ir2doc f) <> tupled (map (( voidptr<>) . ir2doc) args)
+ir2doc (IrConst (CNat n)) = pretty n
+ir2doc (IrBinaryOp Add a b) = u64 <+> ir2doc a <+> pretty "+" <+> u64 <+> ir2doc b
+ir2doc (IrBinaryOp Sub a b) = stmts [pretty "fd4_sub" <> tupled [u64 <+> ir2doc a, u64 <+> ir2doc b]]
 ir2doc (IrLet ty n t t') = stmts [hsep [pretty "void**", name n, pretty "=",  ir2doc t] <> semi <> line <> ir2doc t']
 ir2doc (IrIfZ ty c a b) = sep [ir2doc c, nest 2 (pretty "?" <+> voidptr <> ir2doc b), nest 2 (colon <+> voidptr <> ir2doc a)]
-ir2doc (IrPrint ty str t) = stmts [pretty "wprintf" <> parens (pretty "L" <> pretty (show str)),irPrintN (ir2doc t)]
+ir2doc (IrPrint str t) = stmts [pretty "wprintf" <> parens (pretty "L" <> pretty (show str)),irPrintN (ir2doc t)]
 ir2doc (MkClosure f args) = pretty "fd4_mkclosure" <> tupled (name f : pretty (length args) : map ir2doc args)
 ir2doc (IrAccess t i) = parens (ir2doc t) <> brackets (pretty i)
 
