@@ -155,8 +155,6 @@ sgetInfo (SLet i _ _ _ _ _ _) = i
 sgetInfo (SBinaryOp i _ _ _) = i
 
 
-
-
 -- | Obtiene los nombres de variables (abiertas o globales) de un término.
 freeVars :: Tm info Var -> [Name]
 freeVars tm = nubSort $ go tm [] where

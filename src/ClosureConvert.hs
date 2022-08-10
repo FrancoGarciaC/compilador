@@ -59,7 +59,7 @@ closureConvert (App _ t1 t2) f xs fwa = do
                        
             IrVar ty n ->  return $ IrCall (IrAccess (IrVar ClosureTy n) 0) [IrVar ty n,ir2']                        
             t -> do var <- freshen "var"
-                    let tyt = getTypeIr t
+                    let tyt = ClosureTy
                     return $ IrLet tyt var t (IrCall (IrAccess (IrVar tyt var) 0) [IrVar tyt var,ir2'])                    
 
 

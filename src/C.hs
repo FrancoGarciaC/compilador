@@ -9,7 +9,7 @@ decl2doc :: IrDecl -> Doc a
 decl2doc (IrVal n t) = pretty "void*" <+> name n <> semi
 decl2doc (IrFun n args tyr t) =
  retTyToDoc tyr <+> name n <+> tupled (map (\(x,t) -> argTytoDoc x t) args) <+>
-  braces (nest 2 (line <> pretty "return" <+> voidptr <> parens (ir2doc t) <> semi) <> line)
+  braces (nest 2 (line <> pretty "return" <+> (ir2doc t) <> semi) <> line)
 
 
 retTyToDoc :: Ty -> Doc a
@@ -45,6 +45,7 @@ stmts:: [Doc a] -> Doc a
 stmts xs = parens $ braces $ 
      foldr (\x ds -> nest 2 (line <> x <> semi) <> ds) line xs
 
+
 u64 :: Doc a
 u64 = parens (pretty "uint64_t")
 
@@ -58,7 +59,7 @@ ir2doc (IrCall f args) = parens (pretty "(void* (*) (void*, void*))" <+> ir2doc 
 ir2doc (IrConst (CNat n)) = pretty n
 ir2doc (IrBinaryOp Add a b) = u64 <+> ir2doc a <+> pretty "+" <+> u64 <+> ir2doc b
 ir2doc (IrBinaryOp Sub a b) = stmts [pretty "fd4_sub" <> tupled [u64 <+> ir2doc a, u64 <+> ir2doc b]]
-ir2doc (IrLet ty n t t') = stmts [hsep [pretty "void**", name n, pretty "=",  ir2doc t] <> semi <> line <> ir2doc t']
+ir2doc (IrLet ty n t t') = stmts [hsep [argTytoDoc n ty, pretty "=",  ir2doc t] <> semi <> line <> ir2doc t']
 ir2doc (IrIfZ ty c a b) = sep [ir2doc c, nest 2 (pretty "?" <+> voidptr <> ir2doc b), nest 2 (colon <+> voidptr <> ir2doc a)]
 ir2doc (IrPrint str t) = stmts [pretty "wprintf" <> parens (pretty "L" <> pretty (show str)),irPrintN (ir2doc t)]
 ir2doc (MkClosure f args) = pretty "fd4_mkclosure" <> tupled (name f : pretty (length args) : map ir2doc args)
