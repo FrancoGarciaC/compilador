@@ -142,7 +142,7 @@ tc (BinaryOp p op t u) bs = do
          t' <- tc t bs
          let tty = getInfo t'         
          expect NatTy tty t
-         u' <- tc t bs
+         u' <- tc u bs
          let uty = getInfo u'
          expect NatTy uty u
          return $ BinaryOp NatTy op t' u'
