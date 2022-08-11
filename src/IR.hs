@@ -8,7 +8,7 @@ data Ir = IrVar Ty Name
         | IrConst Const
         | IrPrint String Ir
         | IrBinaryOp BinaryOp Ir Ir 
-        | IrLet Ty Name Ir Ir
+        | IrLet Ty Name Ir Ty Ir
         | IrIfZ Ty Ir Ir Ir
         | MkClosure Ty Name [Ir]
         | IrAccess Ir Int
@@ -22,7 +22,7 @@ getTypeIr (IrCall ty _ _) = ty
 getTypeIr (IrConst _) = NatTy
 getTypeIr (IrPrint _ _) = NatTy
 getTypeIr (IrBinaryOp _ _ _) = NatTy
-getTypeIr (IrLet ty _ _ _) = ty
+getTypeIr (IrLet _ _ _ ty _) = ty
 getTypeIr (IrIfZ ty _ _ _) = ty
 getTypeIr (MkClosure _ _ _) = ClosureTy
 getTypeIr (IrAccess _ _) = error "No tiene tipo"

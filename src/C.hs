@@ -23,8 +23,10 @@ argTytoDoc n ClosureTy =  let pr = pretty "void** " in
 argTytoDoc n NatTy = let pr = pretty "uint64_t " in   
                       if n == "" then pr else  pr <+> name n
                      
-argTytoDoc n (FunTy x t) =  retTyToDoc t <+> pretty " (* " <+> name n <+> pretty ") (void**, " <+> (argTytoDoc "" x) <+> pretty ")"
-argTytoDoc _ (SinTy _) = error "Esto no debería ocurrir"
+argTytoDoc n (FunTy x t) =  let prettyName = if n == "" then pretty "" else name n in
+                            retTyToDoc t <+> pretty " (*" <+> prettyName <> pretty ") (void**, " <+> (argTytoDoc "" x) <+> pretty ")"
+
+argTytoDoc _ _ = error "Esto no debería ocurrir"
 
 fd4Main :: [IrDecl] -> Doc a
 fd4Main xs = pretty "uint64_t* fd4main()" 
@@ -59,7 +61,7 @@ ir2doc (IrCall _ f args) =  ir2doc f <> tupled (map ir2doc args)
 ir2doc (IrConst (CNat n)) = pretty n
 ir2doc (IrBinaryOp Add a b) = ir2doc a <+> pretty "+" <+> ir2doc b
 ir2doc (IrBinaryOp Sub a b) = stmts [pretty "fd4_sub" <> tupled [ir2doc a, ir2doc b]]
-ir2doc (IrLet ty n t t') = stmts [hsep [argTytoDoc n ty, pretty "=",  ir2doc t] <> semi <> line <> ir2doc t']
+ir2doc (IrLet ty n t _ t') = stmts [hsep [argTytoDoc n ty, pretty "=",  ir2doc t] <> semi <> line <> ir2doc t']
 ir2doc (IrIfZ ty c a b) = sep [ir2doc c, nest 2 (pretty "?" <+> ir2doc b), nest 2 (colon <+>  ir2doc a)]
 ir2doc (IrPrint str t) = stmts [pretty "wprintf" <> parens (pretty "L" <> pretty (show str)),irPrintN (ir2doc t)]
 ir2doc (MkClosure _ f args) = pretty "fd4_mkclosure" <> tupled (name f : pretty (length args) : map ir2doc args)

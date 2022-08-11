@@ -1,0 +1,5 @@
+let rec prod (m n : Nat) : Nat  = ifz n then 0 else  m + (prod m (n-1))
+
+let rec fact (x : Nat) : Nat = ifz x then 1 else prod x (fact (x-1))
+
+let final : Nat = fact 5
