@@ -401,7 +401,9 @@ ccFile filePath = do
                                                                     funcNamesWithoutArgs
                                                                      ) ds'   
 
-                       decls' = IrDecls decls                      
+                       decls' = IrDecls decls   
+                 error $ "decls" ++ show ds'   
+                 error $ "decls" ++ show decls'                
                  liftIO $ writeFile (path ++ ".c") (ir2C decls')
     _ -> failFD4 "Error: el archivo debe tener extension .fd4" 
 

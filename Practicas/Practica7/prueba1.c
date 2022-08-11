@@ -42,10 +42,10 @@ void** fd4_suma (void**  fd4_suma, uint64_t  fd4_m) {
 void* fd4_final;
 uint64_t* fd4main() {
   fd4_final = (void *)(({
-    void**  fd4___clo1 = fd4_suma(fd4_mkclosure(fd4_suma, 0), 1);
+    void**  fd4___clo1 = fd4_suma(fd4_mkclosure(fd4_suma, 0), 8);
     ({
       uint64_t  (*  fd4___var1 ) (void**,  uint64_t  ) = fd4___clo1[0];
-      fd4___var1(fd4___clo1, 1);
+      fd4___var1(fd4___clo1, 2);
     });
   }));
   fd4_printn((uint64_t)fd4_final)
