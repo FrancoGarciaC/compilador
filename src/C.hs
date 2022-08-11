@@ -57,10 +57,10 @@ ir2doc (IrVar ty n) = name n
 ir2doc (IrGlobal ty n) = name n
 ir2doc (IrCall _ f args) =  ir2doc f <> tupled (map ir2doc args)
 ir2doc (IrConst (CNat n)) = pretty n
-ir2doc (IrBinaryOp Add a b) = u64 <+> ir2doc a <+> pretty "+" <+> u64 <+> ir2doc b
-ir2doc (IrBinaryOp Sub a b) = stmts [pretty "fd4_sub" <> tupled [u64 <+> ir2doc a, u64 <+> ir2doc b]]
+ir2doc (IrBinaryOp Add a b) = ir2doc a <+> pretty "+" <+> ir2doc b
+ir2doc (IrBinaryOp Sub a b) = stmts [pretty "fd4_sub" <> tupled [ir2doc a, ir2doc b]]
 ir2doc (IrLet ty n t t') = stmts [hsep [argTytoDoc n ty, pretty "=",  ir2doc t] <> semi <> line <> ir2doc t']
-ir2doc (IrIfZ ty c a b) = sep [ir2doc c, nest 2 (pretty "?" <+> ir2doc b), nest 2 (colon <+> ir2doc a)]
+ir2doc (IrIfZ ty c a b) = sep [ir2doc c, nest 2 (pretty "?" <+> ir2doc b), nest 2 (colon <+>  ir2doc a)]
 ir2doc (IrPrint str t) = stmts [pretty "wprintf" <> parens (pretty "L" <> pretty (show str)),irPrintN (ir2doc t)]
 ir2doc (MkClosure _ f args) = pretty "fd4_mkclosure" <> tupled (name f : pretty (length args) : map ir2doc args)
 ir2doc (IrAccess t i) =  (ir2doc t) <> brackets (pretty i)

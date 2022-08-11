@@ -1,0 +1,4 @@
+let map (n : Nat) (f : Nat -> Nat) : Nat = f n
+
+let duplicador (n : Nat) : Nat = n+n
+let final : Nat = map 3 duplicador

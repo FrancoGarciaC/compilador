@@ -6,4 +6,4 @@ import Spec
 main :: IO ()
 main = 
   putStrLn "Byte Test Suite" >>
-  runTestWith "test/byte_run.sh "
+  runTestWith "test/byte_run.sh"

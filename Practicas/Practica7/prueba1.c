@@ -12,16 +12,13 @@ uint64_t fd4___suma0 (void**  fd4_clo, uint64_t  fd4_n) {
       ({
         void**  (*  fd4_suma ) (void**,  uint64_t  ) = fd4_suma_clo[0];
         fd4_n
-        ? (uint64_t) ({
+        ? ({
             void**  fd4___clo1 = fd4_suma(fd4_suma_clo, fd4_m);
             ({
               uint64_t  (*  fd4___var1 ) (void**,  uint64_t  ) = fd4___clo1[0];
-              fd4___var1( fd4___clo1
-              , ({
-                fd4_sub((uint64_t) fd4_n, (uint64_t) 1);
-              }) );
+              fd4___var1(fd4___clo1, ({ fd4_sub(fd4_n, 1); }));
             });
-          }) + (uint64_t) 1
+          }) + 1
         : fd4_m;
       });
     });
