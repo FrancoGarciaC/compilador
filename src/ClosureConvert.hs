@@ -39,6 +39,10 @@ closureConvert t@(Lam typ x ty t1) f xs fwa = do
       ns <- freshen [f] 
       let name = head ns
           ret = getCod typ
+
+          -- si el argumento es una funcion se 
+          -- necesita agregar la clausura de la misma como variable libre 
+          -- puesto que en las subdeclaraciones va a ser un parametro
           xs' = let xClo = x ++ "_clo" in 
                 case ty of 
                     FunTy _ _ -> (xClo,ClosureTy) : xs
@@ -187,3 +191,7 @@ fromStateToList d info fwa =
 getCod :: Ty -> Ty 
 getCod (FunTy _ c) = c
 getCod _ = error "Esta variable no representa una funcion"
+
+isFun :: Ty -> Bool
+isFun (FunTy _ _) = True
+isFun _ = False

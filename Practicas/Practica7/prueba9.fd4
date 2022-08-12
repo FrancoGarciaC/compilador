@@ -1,0 +1,2 @@
+let final : Nat = let mapF ( v : Nat) : Nat = print "x+y+z+w+v:=" v
+                  in  mapF 3

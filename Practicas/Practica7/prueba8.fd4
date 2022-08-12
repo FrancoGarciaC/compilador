@@ -1,0 +1,10 @@
+let rec map (x : Nat) (f : Nat -> Nat -> Nat): Nat =
+        ifz x then x 
+        else let res : Nat = f x 12 in
+             map (x-1) f
+
+
+let mapF ( v w x y z : Nat) : Nat = print "x+y+z+w+v:=" (x+y+z+w+v)
+
+
+let final : Nat = map 20 (mapF 5 12 3) 
