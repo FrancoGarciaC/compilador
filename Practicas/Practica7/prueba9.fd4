@@ -1,2 +1,12 @@
-let final : Nat = let mapF ( v : Nat) : Nat = print "x+y+z+w+v:=" v
-                  in  mapF 3
+let rec map (x : Nat) (f : Nat -> Nat) (g : Nat -> Nat) (p : Nat -> Nat) (h : Nat -> Nat) : Nat =
+       ifz x then 1 else let res : Nat = f x in
+                         let res2 : Nat = g x in
+                         let res3 : Nat = p x in
+                         let res4 : Nat = h x in map (x-1) f g p h            
+
+
+let final : Nat = let mapF (x y : Nat) : Nat = print "x+y:=" (x+y) in
+                  let mapP (h j : Nat) : Nat = print "h-j:=" (h-j) in
+                  let mapH (h j : Nat) : Nat = print "h**j:=" (h-j) in 
+                  let mapJ (h j : Nat) : Nat = print "h....j:=" (h-j) in
+                  map 20 (mapF 5) (mapP 12) (mapH 18) (mapJ 20)

@@ -30,9 +30,22 @@ closureConvert (IfZ ty tz tt tf) f xs fwa = do
 
 closureConvert (Let ty2 x ty1 t1  t2) f xs fwa = do
       let tt = open x t2      
-      ir1 <- closureConvert t1 f xs fwa     
-      ir2 <- closureConvert tt f ((x,ty1):xs) fwa
-      return $ IrLet ty1 x ir1 ty2 ir2
+      ir1 <- closureConvert t1 f xs fwa                      
+      let xs' = let xClo = x ++ "_clo" in 
+                 case ty1 of 
+                    FunTy _ _ -> (xClo,ClosureTy) : xs
+                    _ -> xs
+      
+      ir2 <- closureConvert tt f ((x,ty1):xs') fwa
+      return $  
+                 case ir1 of
+                   MkClosure _  x' _ -> let xClo = x ++ "_clo" in
+                                        IrLet ClosureTy xClo ir1 (getTypeIr ir2) $
+                                        IrLet ty1 x (IrAccess (IrVar ClosureTy xClo) 0) (getTypeIr ir2) ir2 
+                   
+                   _ ->  IrLet (getTypeIr ir1) x ir1 (getTypeIr ir2) ir2      
+      
+              
       
 closureConvert t@(Lam typ x ty t1) f xs fwa = do
       let tt = open x t1
