@@ -1,0 +1,5 @@
+let map (x : Nat) (f : Nat -> Nat) : Nat = f x
+
+let final : Nat = let rec suma (m n:Nat) : Nat = ifz n then m else (suma m (n-1))+1
+                  in map (suma 3)
+
