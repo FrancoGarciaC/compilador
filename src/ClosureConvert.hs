@@ -48,10 +48,10 @@ closureConvert t@(Lam typ x ty t1) f xs fwa = do
                     
                     _ -> irt
              
-           decl = IrFun name ([("clo",ClosureTy),(x, ty)]) ret (declareFreeVars (getTypeIr irt') irt' "clo" $ reverse xs)
+           decl = IrFun name ([("clo",ClosureTy),(x, ty)]) ret (declareFreeVars f (getTypeIr irt') irt' "clo" $ reverse xs)
      
       tell [decl]
-      return $ MkClosure typ name [IrVar ty x | (x,ty) <- xs]
+      return $ MkClosure typ name [IrVar ty x | (x,ty) <- xs, x /= f]
 
 closureConvert (App _ t1 t2) f xs fwa = do
       ir2 <- closureConvert t2 f xs fwa
@@ -103,9 +103,9 @@ closureConvert (App _ t1 t2) f xs fwa = do
 closureConvert (Fix retTy ff tf x tv t) f xs fwa = do 
       let tt = openN [ff,x] t
       irt <- closureConvert tt f ([(ff,tf),(x,tv)] ++ xs) fwa      
-      let decl = IrFun ff ([("clo",ClosureTy),(x,tv)]) retTy (declareFreeVars (getTypeIr irt) irt "clo" $ reverse xs)
+      let decl = IrFun ff ([("clo",ClosureTy),(x,tv)]) retTy (declareFreeVars f (getTypeIr irt) irt "clo" $ reverse xs)
       tell [decl]
-      return $ MkClosure tf ff ((IrVar ClosureTy "clo") : [IrVar t x | (x,t) <- xs])
+      return $ MkClosure tf ff ((IrVar ClosureTy "clo") : [IrVar t x | (x,t) <- xs, x /= f])
 
 
 
@@ -120,15 +120,16 @@ errorCase t = error $ "No consideramos este caso " ++ show t
 
 -- Dado un ir y el nombre de la variable donde se almacena la clausura
 -- declara todas las variables libre en t
-declareFreeVars :: Ty -> Ir -> Name -> [(Name,Ty)] -> Ir
-declareFreeVars _ t _ [] = t
-declareFreeVars tBody t clo q@((x,ty):xs) = case ty of 
+declareFreeVars :: Name -> Ty -> Ir -> Name -> [(Name,Ty)] -> Ir
+declareFreeVars _ _ t _ [] = t
+declareFreeVars f tBody t clo q@((x,ty):xs) =
+                                case ty of 
                                        
                                        (FunTy _ _) -> let xClo = x ++ "_clo" in
-                                                      IrLet ClosureTy xClo (IrAccess (IrVar ClosureTy clo) (length q)) tBody
-                                                      (IrLet ty x (IrAccess (IrVar ClosureTy xClo) 0) tBody $ declareFreeVars tBody t clo xs)
+                                                      -- IrLet ClosureTy xClo (IrAccess (IrVar ClosureTy clo) (length q)) tBody
+                                                      (IrLet ty x (IrAccess (IrVar ClosureTy xClo) 0) tBody $ declareFreeVars f tBody t clo xs)
                                                                                              
-                                       _ -> IrLet ty x (IrAccess (IrVar ClosureTy clo) (length q)) tBody $ declareFreeVars tBody t clo xs
+                                       _ -> IrLet ty x (IrAccess (IrVar ClosureTy clo) (length q)) tBody $ declareFreeVars f tBody t clo xs
 
 
 
@@ -150,7 +151,7 @@ fromStateToList d info fwa =
   let dName = declName d
       (term, freeVars, ret) = case declBody d of 
                                Lam (FunTy ta ret) var tv t -> (open var t,[(var,tv)], ret)
-                               Fix (FunTy ta ret) ff tf var tv t -> (openN [ff,var] t,[(ff,tf),(var,tv)],ret)
+                               Fix (FunTy ta ret) ff tf var tv t -> (openN [ff,var] t,[(ff,tf),(var,tv),(dName ++ "_clo",ClosureTy)],ret)
                                t -> (t,[],getInfo t)
       irt = closureConvert term dName freeVars fwa
       isVal = fst info
@@ -158,7 +159,7 @@ fromStateToList d info fwa =
       declArg = let args = snd info in if null args then ("dummy", NatTy) else head args               
       ((tf,_),decls) = runWriter $ runStateT irt 0 
   in if isVal then decls ++ [IrVal dName tf]
-     else decls ++ [IrFun dName [(dName,ClosureTy),declArg] ret tf]
+     else decls ++ [IrFun dName [(dName ++ "_clo",ClosureTy),declArg] ret tf]
  
 
 getCod :: Ty -> Ty 
