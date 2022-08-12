@@ -4,7 +4,7 @@ extern void *fd4_mkclosure(void*, int, ...);
 extern void *fd4_printn(uint64_t);
 extern void *fd4_sub(uint64_t, uint64_t);
 
-uint64_t fd4___map3 (void**  fd4_clo, void**  (* fd4_f) (void**,  uint64_t  )) {
+uint64_t fd4___map3 (void**  fd4_clo, void**  fd4_f_clo) {
   return ({
     uint64_t  fd4_n = fd4_clo[4];
     ({
@@ -14,7 +14,7 @@ uint64_t fd4___map3 (void**  fd4_clo, void**  (* fd4_f) (void**,  uint64_t  )) {
         ({
           uint64_t  fd4_p = fd4_clo[1];
           ({
-            void**  fd4_f_clo = fd4_mkclosure(fd4_f, 0);
+            void**  (* fd4_f) (void**,  uint64_t  ) = fd4_f_clo[0];
             ({
               void**  fd4___clo6 = ({
                 void**  fd4___clo5 = ({
@@ -67,7 +67,7 @@ void** fd4___map0 (void**  fd4_clo, uint64_t  fd4_m) {
     fd4_mkclosure(fd4___map1, 2, fd4_m, fd4_n);
   });
 }
-void** fd4_map (void**  fd4_map, uint64_t  fd4_n) {
+void** fd4_map (void**  fd4_map_clo, uint64_t  fd4_n) {
   return fd4_mkclosure(fd4___map0, 1, fd4_n);
 }
 uint64_t fd4___sumador2 (void**  fd4_clo, uint64_t  fd4_p) {
@@ -97,7 +97,7 @@ void** fd4___sumador0 (void**  fd4_clo, uint64_t  fd4_m) {
     fd4_mkclosure(fd4___sumador1, 2, fd4_m, fd4_n);
   });
 }
-void** fd4_sumador (void**  fd4_sumador, uint64_t  fd4_n) {
+void** fd4_sumador (void**  fd4_sumador_clo, uint64_t  fd4_n) {
   return fd4_mkclosure(fd4___sumador0, 1, fd4_n);
 }
 void* fd4_final;
@@ -124,7 +124,7 @@ uint64_t* fd4main() {
     });
     ({
       uint64_t  (* fd4___var4) (void**,  void**  (* ) (void**,  uint64_t  ) ) = fd4___clo4[0];
-      fd4___var4(fd4___clo4, fd4_sumador);
+      fd4___var4(fd4___clo4, fd4_mkclosure(fd4_sumador, 0));
     });
   }));
   fd4_printn((uint64_t)fd4_final)
