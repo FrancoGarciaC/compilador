@@ -25,7 +25,7 @@ uint64_t fd4___suma0 (void**  fd4_clo, uint64_t  fd4_n) {
   });
 }
 void** fd4_suma (void**  fd4_suma_clo, uint64_t  fd4_m) {
-  return fd4_mkclosure(fd4___suma0, 2, fd4_m, fd4_suma_clo);
+  return fd4_mkclosure(fd4___suma0, 3, fd4_suma, fd4_m, fd4_suma_clo);
 }
 void* fd4_final;
 uint64_t* fd4main() {

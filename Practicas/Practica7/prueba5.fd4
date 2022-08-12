@@ -1,0 +1,6 @@
+let map (x : Nat) (f : Nat -> Nat) : Nat =
+     let res : Nat = f x in res 
+
+let mapF (x y : Nat) : Nat = print "x+y:=" (x+y)
+
+let final : Nat = let p : Nat -> Nat = mapF 5 in map 20 p 
