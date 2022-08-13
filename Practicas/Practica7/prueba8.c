@@ -40,7 +40,7 @@ uint64_t fd4___map0 (void**  fd4_clo, void**  fd4_f_clo) {
   });
 }
 void** fd4_map (void**  fd4_map_clo, uint64_t  fd4_x) {
-  return fd4_mkclosure(fd4___map0, 2, fd4_x, fd4_map_clo);
+  return fd4_mkclosure(fd4___map0, 3, fd4_map, fd4_x, fd4_map_clo);
 }
 uint64_t fd4___mapF3 (void**  fd4_clo, uint64_t  fd4_z) {
   return ({

@@ -1,8 +1,9 @@
 let rec map (x y : Nat) (f : Nat -> Nat -> Nat) : Nat = f x y
 
-let final : Nat = let mapF (x y z : Nat) : Nat = x+y+z in
+let final : Nat = let c : Nat = 200 in
+                  let mapF (x y z : Nat) : Nat = x+y+z in
                   let mapP (h j q : Nat) : Nat = print "h-j:=" (mapF h j q) in
                   let mapX (a b q : Nat) : Nat = print "a-b:=" (mapP a b q) in
                   let mapZ (v m q : Nat) : Nat = print "b+m:=" (mapX v m q) in
-                  let mapL (k i q : Nat) : Nat = print "k+i:=" (5 + (mapZ k i q)) in                  
+                  let mapL (k i q : Nat) : Nat = print "k+i:=" (c + (mapZ k i q)) in                  
                   map 20 23 (mapL 5) 

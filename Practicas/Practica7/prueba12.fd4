@@ -1,0 +1,7 @@
+let const : Nat = 205
+let sum  (v w x y z  : Nat) : Nat = v + w + x + y + z + const
+let sumatemp1 : Nat -> Nat -> Nat -> Nat -> Nat = sum 3
+let sumatemp2 :  Nat -> Nat -> Nat -> Nat = sumatemp1 2 
+let sumatemp3 : Nat -> Nat -> Nat = sumatemp2 4
+let sumatemp4 : Nat -> Nat = sumatemp3 6
+let final : Nat = sumatemp4 700
