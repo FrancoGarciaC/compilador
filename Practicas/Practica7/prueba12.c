@@ -122,7 +122,6 @@ uint64_t* fd4main() {
       fd4___var0(fd4___clo0, 7);
     });
   }));
-  fd4_printn((uint64_t)fd4_final);
   fd4_printn((uint64_t)fd4_final2)
   ;
   return 0;

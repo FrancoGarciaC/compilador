@@ -18,7 +18,7 @@ void** fd4_temp (void**  fd4_temp_clo, uint64_t  fd4_dummy) {
     void**  fd4_suma_clo = fd4_mkclosure(fd4___temp0, 0);
     ({
       void**  (* fd4_suma) (void**,  uint64_t  ) = fd4_suma_clo[0];
-      fd4_suma;
+      fd4_suma_clo;
     });
   });
 }
