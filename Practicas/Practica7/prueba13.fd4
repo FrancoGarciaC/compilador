@@ -1,0 +1,7 @@
+let temp : Nat -> Nat -> Nat = 
+    let suma (m n : Nat) : Nat = m + n in suma
+
+
+let suma15 : Nat -> Nat  = temp 15
+
+let final : Nat = suma15 3

@@ -166,20 +166,18 @@ sletexp :: P STerm
 sletexp = do
   i <- getPos
   reserved "let"
+  isRec <- parseRec
   name <- var
-  ls <- many binder -- Agregamos para que parsee sin parentesis
+  ls <- many binder 
   let ls' = Data.Foldable.concat ls 
   reservedOp ":"
   retty <- typeP
   reservedOp "="
   def <- sexpr
-  let rec = case def of
-              SFix {} -> True
-              _ -> False
   reserved "in"
-  SLet i rec name ls' retty def <$> sexpr
+  SLet i isRec name ls' retty def <$> sexpr
 
-sfix :: P STerm
+{--sfix :: P STerm
 sfix   = do i <- getPos
             reserved "fix"
             [(f, fty)] <- binder
@@ -194,7 +192,7 @@ slam = do i <- getPos
           ls <- many binder
           let ls' = Data.Foldable.concat ls 
           reservedOp "->"
-          Slam i ls' <$> sexpr
+          Slam i ls' <$> sexpr --}
 
 
 -- Nota el parser app también parsea un solo atom.
@@ -220,8 +218,8 @@ declOrStm =  try (Left <$> sdeclOrSintype) <|> (Right <$> sexpr)
 
 --Términos con sintactic sugar
 stm :: P STerm
-stm = sapp  <|> slam  <|> sifz <|> sprintOp <|> sfix  <|> sletexp
-
+-- stm = sapp  <|> slam  <|> sifz <|> sprintOp <|> sfix  <|> sletexp
+stm = sapp  <|> sifz <|> sprintOp <|> sletexp
 
 sdecl :: P (SDecl STerm)
 sdecl = do
@@ -235,8 +233,9 @@ sdecl = do
      ty <-  typeP
      reservedOp "="
      SDecl i b name ls' ty <$> sexpr
-     where parseRec = (reserved "rec" >> return True) <|> return False
 
+parseRec :: P Bool
+parseRec = (reserved "rec" >> return True) <|> return False
 
 
 sintype::P (SDecl a)
@@ -252,9 +251,6 @@ sintype = do reserved "type"
 program :: P ([SDecl STerm])
 --program e = many $ sdecl e
 program = many $ sdeclOrSintype
-             -- separa en 2 listas de acuerdo a si son lefts o rights
-
-
 
 sdeclOrSintype :: ParsecT String () Identity (SDecl STerm)
 sdeclOrSintype = try (sdecl <|> sintype)

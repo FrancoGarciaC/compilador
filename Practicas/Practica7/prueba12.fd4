@@ -4,4 +4,8 @@ let sumatemp1 : Nat -> Nat -> Nat -> Nat -> Nat = sum 3
 let sumatemp2 :  Nat -> Nat -> Nat -> Nat = sumatemp1 2 
 let sumatemp3 : Nat -> Nat -> Nat = sumatemp2 4
 let sumatemp4 : Nat -> Nat = sumatemp3 6
-let final : Nat = sumatemp4 700
+let final : Nat = sumatemp4 7
+
+let sumatemp5 : Nat -> Nat -> Nat = sum 8 9 20
+let sumatemp6 : Nat -> Nat = sumatemp5 4
+let final2 : Nat = sumatemp6 7

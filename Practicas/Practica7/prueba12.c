@@ -81,16 +81,49 @@ void** fd4_sumatemp4 (void**  fd4_sumatemp4_clo, uint64_t  fd4_dummy) {
   });
 }
 void* fd4_final;
+void** fd4_sumatemp5 (void**  fd4_sumatemp5_clo, uint64_t  fd4_dummy) {
+  return ({
+    void**  fd4___clo2 = ({
+      void**  fd4___clo1 = fd4_sum(fd4_mkclosure(fd4_sum, 0), 8);
+      ({
+        void**  (* fd4___var1) (void**,  uint64_t  ) = fd4___clo1[0];
+        fd4___var1(fd4___clo1, 9);
+      });
+    });
+    ({
+      void**  (* fd4___var2) (void**,  uint64_t  ) = fd4___clo2[0];
+      fd4___var2(fd4___clo2, 20);
+    });
+  });
+}
+void** fd4_sumatemp6 (void**  fd4_sumatemp6_clo, uint64_t  fd4_dummy) {
+  return ({
+    void**  fd4___clo0 = fd4_sumatemp5(fd4_mkclosure(fd4_sumatemp5, 0), 0);
+    ({
+      void**  (* fd4___var0) (void**,  uint64_t  ) = fd4___clo0[0];
+      fd4___var0(fd4___clo0, 4);
+    });
+  });
+}
+void* fd4_final2;
 uint64_t* fd4main() {
   fd4_const = (void *)(205);
   fd4_final = (void *)(({
     void**  fd4___clo0 = fd4_sumatemp4(fd4_mkclosure(fd4_sumatemp4, 0), 0);
     ({
       uint64_t  (* fd4___var0) (void**,  uint64_t  ) = fd4___clo0[0];
-      fd4___var0(fd4___clo0, 700);
+      fd4___var0(fd4___clo0, 7);
     });
   }));
-  fd4_printn((uint64_t)fd4_final)
+  fd4_final2 = (void *)(({
+    void**  fd4___clo0 = fd4_sumatemp6(fd4_mkclosure(fd4_sumatemp6, 0), 0);
+    ({
+      uint64_t  (* fd4___var0) (void**,  uint64_t  ) = fd4___clo0[0];
+      fd4___var0(fd4___clo0, 7);
+    });
+  }));
+  fd4_printn((uint64_t)fd4_final);
+  fd4_printn((uint64_t)fd4_final2)
   ;
   return 0;
 }

@@ -22,7 +22,7 @@ uint64_t fd4_duplicador (void**  fd4_duplicador_clo, uint64_t  fd4_n) {
 void* fd4_final;
 uint64_t* fd4main() {
   fd4_final = (void *)(({
-    void**  fd4___clo1 = fd4_map(fd4_mkclosure(fd4_map, 0), 3);
+    void**  fd4___clo1 = fd4_map(fd4_mkclosure(fd4_map, 0), 12);
     ({
       uint64_t  (* fd4___var1) (void**,  uint64_t  (* ) (void**,  uint64_t  ) ) = fd4___clo1[0];
       fd4___var1(fd4___clo1, fd4_mkclosure(fd4_duplicador, 0));

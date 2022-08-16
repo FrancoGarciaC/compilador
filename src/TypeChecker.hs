@@ -118,20 +118,20 @@ tc (App p t u) bs = do
          return $ App cod t' u' 
 
          
-tc (Fix p f fty x xty t) bs = do         
+tc (Fix p f fty x xty t) bs = do      
          (dom, cod) <- domCod (V p (Free f)) fty         
          when (dom /= xty) $ do
            failPosFD4 p "El tipo del argumento de un fixpoint debe coincidir con el \
                         \dominio del tipo de la función"
          let t' = openN [f, x] t
          t'' <- tc t' ((x,xty):(f,fty):bs)
-         let ty'' = getInfo t''
-         expect cod ty'' t'
+         let ty'' = getInfo t''         
+         expect cod ty'' t'         
          return $ Fix fty f fty x xty t''
 
 tc (Let p v ty def t) bs = do         
          def' <- tc def bs
-         let ty' = getInfo def'        
+         let ty' = getInfo def'  
          expect ty ty' def
          t' <- tc (open v t) ((v,ty):bs)
          let letTy = getInfo t'
@@ -184,7 +184,7 @@ tcDecl tyDecl (Decl p n t) = do
     s <- get        
     case mty of
          Nothing -> do  t' <- tc t (tyEnv s)   
-                        let ty = getInfo t' :: Ty                                          
+                        let ty = getInfo t' :: Ty                                           
                         expect tyDecl ty t
                         addTy n ty
                         return t'

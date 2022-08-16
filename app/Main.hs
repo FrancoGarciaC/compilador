@@ -201,14 +201,14 @@ typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl TTerm))
 typecheckDecl decl@SDecl {} = do
         typeNoSugar <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
         (Decl p n t) <- desugar decl        
-        let  dd = (Decl p n (elab t))        
+        let dd = (Decl p n (elab t))   
         tterm <- tcDecl typeNoSugar dd
         let dd' = Decl p n tterm
         return $ Just dd'
 
 typecheckDecl d@SType {} = do
-      let n=sinTypeName d
-          v=sinTypeVal d
+      let n = sinTypeName d
+          v = sinTypeVal d
       res <- lookupSinTy n
       case res of
           Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
