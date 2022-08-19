@@ -94,46 +94,26 @@ closureConvert t@(Lam typ x ty t1) f xs fwa = do
 
 closureConvert (Fix retTy ff tf x tv t) f xs fwa = do 
       let tt = openN [ff,x] t
-      irt <- closureConvert tt f ([(ff,tf),(x,tv)] ++ xs) fwa      
-      let decl = IrFun ff ([("clo",ClosureTy),(x,tv)]) retTy (declareFreeVars (getTypeIr irt) irt "clo" $ reverse xs)
+      let fClo = ff ++ "_clo"
+      irt <- closureConvert tt ff ([(ff,tf), (x,tv),(fClo,ClosureTy)] ++ xs) fwa      
+      let decl = IrFun ff ([(fClo,ClosureTy),(x,tv)]) retTy (declareFreeVars (getTypeIr irt) irt fClo $ reverse xs)
       tell [decl]
-      return $ MkClosure tf ff ((IrVar ClosureTy "clo") : [IrVar t x | (x,t) <- xs])
-
+      return $ MkClosure tf ff [IrVar t x | (x,t) <- xs]
 
 closureConvert (App _ t1 t2) f xs fwa = do
       ir2 <- closureConvert t2 f xs fwa
       ir1 <- closureConvert t1 f xs fwa
       
-      -- si se pasa una funcion como argumento, se reemplaza por su clausura
-      {-let ir2' = case ir2 of                                              
-                   IrGlobal ty n -> MkClosure ty n []
-                   v@(IrVar ty n) -> case ty of 
-                                      FunTy _ _ -> IrVar ClosureTy (n ++ "_clo")
-                                      _ -> v 
-                   _ -> ir2-}
 
       case ir1 of             
             c@(MkClosure ty n xss)  -> do ns <- freshen ["clo","var"]
                                           let cod = getCod ty
-                                          return $ IrCall cod (IrVar ty n) [c,ir2]
-                                          {- return $ IrLet ClosureTy cloname q cod 
-                                                   (IrLet ty fname (IrAccess (IrVar ClosureTy cloname) 0) cod (IrCall cod (IrVar ty fname)  [IrVar ClosureTy cloname,ir2']))-}
-            
-            {--v@(IrGlobal ty n) -> do ns <- freshen ["clo","var"]
-                                    let cloname = ns !! 0
-                                        varname = ns !! 1 
-                                        cod = getCod ty
-                                    return $ if not $ n `elem` fwa then IrCall cod v [MkClosure ty n [],ir2']   
-                                             else IrLet ClosureTy cloname (IrCall cod (IrVar ty n) [MkClosure ty n [],IrConst (CNat 0)]) cod $
-                                                  IrLet ty varname (IrAccess (IrVar ClosureTy cloname) 0) cod $
-                                                  IrCall cod (IrVar ty varname)  [IrVar ClosureTy cloname,ir2']--}
+                                          return $ IrCall cod (IrVar ty n) [c,ir2]                                        
                        
             (IrVar ty n) ->  do let fname = reverse $ drop 4 $ reverse n
                                 return $ IrCall (getCod ty) (IrVar ty fname) [IrVar ClosureTy n, ir2] 
 
-            c@(IrCall ty n args) -> do  -- error $ show ir1
-                                        -- error $ show ir2
-                                        ns <- freshen ["clo","var"]
+            c@(IrCall ty n args) -> do  ns <- freshen ["clo","var"]
                                         let cloname = ns !! 0 
                                             varname = ns !! 1    
                                             clovar =  IrVar ClosureTy cloname  
@@ -155,9 +135,6 @@ closureConvert (App _ t1 t2) f xs fwa = do
                              IrCall tyRet (IrVar tyT varname) [clovar,ir2]
 
 
-
-
-
 closureConvert (Print _ s t) f xs fwa = closureConvert t f xs fwa >>= \ir -> return $ IrPrint s ir
 
 closureConvert (Const _ c) f xs fwa = return $ IrConst c
@@ -169,6 +146,7 @@ errorCase t = error $ "No consideramos este caso " ++ show t
 
 -- Dado un ir y el nombre de la variable donde se almacena la clausura
 -- declara todas las variables libre en t
+
 declareFreeVars :: Ty -> Ir -> Name -> [(Name,Ty)] -> Ir
 
 declareFreeVars tBody t close q = declareFreeVars' [] tBody t close q 

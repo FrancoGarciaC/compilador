@@ -1,6 +1,8 @@
 let temp : Nat -> Nat -> Nat = 
-    let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else (suma m (n-1))+1 in suma
+    let const : Nat = 20 in 
+    let const1 : Nat = 30 in 
+    let rec suma (m n :Nat) : Nat = ifz n then m else (suma m (n-1))+1 in 
+    let rec prod (m n : Nat) : Nat = ifz n then 0 else suma m (prod m (n-1)) in prod
  
-
-
-let fina : Nat = temp 3 4
+let temp2 : Nat -> Nat = temp 15
+let final : Nat = temp2 3
