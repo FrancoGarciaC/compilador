@@ -1,0 +1,5 @@
+let rec gcd(n m : Nat) : Nat = 
+                              ifz n then m else 
+                              ifz (n-m) then gcd (m-n) n else gcd m (n-m)
+
+let res : Nat = gcd 12 1

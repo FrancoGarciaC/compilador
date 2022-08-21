@@ -22,57 +22,6 @@ import Subst
 -- | 'tc' chequea y devuelve el tipo de un término 
 -- Si el término no está bien tipado, lanza un error
 -- usando la interfaz de las mónadas @MonadFD4@.
-{-tc :: MonadFD4 m => Term         -- ^ término a chequear
-                 -> [(Name,Ty)]  -- ^ entorno de tipado
-                 -> m Ty         -- ^ tipo del término
-tc (V p (Bound _)) _ = failPosFD4 p "typecheck: No deberia haber variables Bound"
-tc (V p (Free n)) bs = case lookup n bs of
-                           Nothing -> failPosFD4 p $ "Variable no declarada "++ppName n
-                           Just ty -> return ty 
-tc (V p (Global n)) bs = case lookup n bs of
-                           Nothing -> failPosFD4 p $ "Variable no declarada "++ppName n
-                           Just ty -> return ty
-tc (Const _ (CNat n)) _ = return NatTy
-tc (Print p str t) bs = do 
-      ty <- tc t bs
-      expect NatTy ty t
-tc (IfZ p c t t') bs = do
-       tyc  <- tc c bs
-       expect NatTy tyc c
-       tyt  <- tc t bs
-       tyt' <- tc t' bs
-       expect tyt tyt' t'
-tc (Lam p v ty t) bs = do         
-         ty' <- tc (open v t) ((v,ty):bs)
-         return (FunTy ty ty')
-tc (App p t u) bs = do
-         tyt <- tc t bs
-         (dom,cod) <- domCod t tyt         
-         tyu <- tc u bs      
-         expect dom tyu u
-         return cod
-tc (Fix p f fty x xty t) bs = do         
-         (dom, cod) <- domCod (V p (Free f)) fty         
-         when (dom /= xty) $ do
-           failPosFD4 p "El tipo del argumento de un fixpoint debe coincidir con el \
-                        \dominio del tipo de la función"
-         let t' = openN [f, x] t
-         ty' <- tc t' ((x,xty):(f,fty):bs)
-         expect cod ty' t'
-         return fty
-tc (Let p v ty def t) bs = do         
-         ty' <- tc def bs        
-         expect ty ty' def
-         tc (open v t) ((v,ty):bs)
-tc (BinaryOp p op t u) bs = do
-         tty <- tc t bs         
-         expect NatTy tty t
-         uty <- tc t bs
-         expect NatTy uty u -}
-
--- | 'tc' chequea y devuelve el tipo de un término 
--- Si el término no está bien tipado, lanza un error
--- usando la interfaz de las mónadas @MonadFD4@.
 tc :: MonadFD4 m => Term         -- ^ término a chequear
                  -> [(Name,Ty)]  -- ^ entorno de tipado
                  -> m TTerm         -- ^ tipo del término
@@ -106,7 +55,7 @@ tc (IfZ p c t1 t2) bs = do
 tc (Lam p v ty t) bs = do         
          t' <- tc (open v t) ((v,ty):bs)
          let tyl = getInfo t'
-         return $ Lam (FunTy ty tyl) v ty t' 
+         return $ Lam (FunTy ty tyl) v ty (close v t') 
 
 tc (App p t u) bs = do
          t' <- tc t bs
@@ -127,7 +76,7 @@ tc (Fix p f fty x xty t) bs = do
          t'' <- tc t' ((x,xty):(f,fty):bs)
          let ty'' = getInfo t''         
          expect cod ty'' t'         
-         return $ Fix fty f fty x xty t''
+         return $ Fix fty f fty x xty (closeN [f,x] t'')
 
 tc (Let p v ty def t) bs = do         
          def' <- tc def bs
@@ -135,7 +84,7 @@ tc (Let p v ty def t) bs = do
          expect ty ty' def
          t' <- tc (open v t) ((v,ty):bs)
          let letTy = getInfo t'
-         return $ Let letTy v ty def' t'
+         return $ Let letTy v ty def' (close v t')
 
 
 tc (BinaryOp p op t u) bs = do

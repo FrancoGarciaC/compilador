@@ -1,4 +1,6 @@
-let prog ( x:Nat ) : Nat = print "x:=" x
-let rec suma (m:Nat) (n:Nat) : Nat = ifz n then m else (suma m (n-1))+1
-let rec resta (m:Nat) (n:Nat) : Nat = ifz n then m else (resta m (n-1))-1
-let p : Nat = prog (suma 25 5)
+let pred ( x :  Nat ) : Nat = x-1
+let rec suma (m n : Nat) : Nat = ifz n then m else (suma m (pred n))+1
+let rec resta (m n : Nat) : Nat = ifz n then m else (resta m (pred n))-1
+
+
+let p : Nat = suma 5 (resta 300 25)

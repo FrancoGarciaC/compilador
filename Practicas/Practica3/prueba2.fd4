@@ -1,0 +1,4 @@
+let pred ( x:Nat ) : Nat = x-1
+let rec prog (m:Nat)  : Nat = ifz m then 0 else 
+                              let temp : Nat = print "m=" m in  prog (pred m) 
+let p : Nat = prog 20
