@@ -104,8 +104,8 @@ bc (Const _ (CNat n)) = do -- printFD4 "Estoy en Const"
                            return [CONST,n]
 
 bc (Lam _ n ty t) = do -- -- printFD4 "Estoy en Lam"
-                       --bt <- tailCallOpt t
-                       bt <- bc t
+                       bt <- tailCallOpt t
+                       -- bt <- bc t
                        return $ [FUNCTION,(length bt) + 1] ++ bt ++ [RETURN]
 
 bc (App _ t1 t2) =  do -- -- printFD4 "Estoy en App"
