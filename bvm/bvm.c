@@ -371,7 +371,8 @@ void run(code init_c)
 		}
 
 		case STOP: {	
-
+			uint32_t i = s[0].i;
+			wprintf(L"%" PRIu32 "\n", i);
 			return;
 		}
 
