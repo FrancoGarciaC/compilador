@@ -139,14 +139,11 @@ table = [[binary "+" Add Ex.AssocLeft,
 sexpr :: P STerm
 sexpr = Ex.buildExpressionParser table stm
 
-
 satom :: P STerm
 satom = (flip SConst <$> const <*> getPos)
        <|> flip Sv <$> var <*> getPos
        <|> parens sexpr
        <|> sprintOp
-
--- parsea un par (variable : tipo)
 
 binding :: P [(Name, Ty)]
 binding = do v <- many var
@@ -154,13 +151,8 @@ binding = do v <- many var
              ty <- typeP
              return [(n,ty)| n <- v]
              
-
-
-
 binder ::P [(Name, Ty)]
 binder = parens binding
-
-
 
 sletexp :: P STerm
 sletexp = do
@@ -176,24 +168,6 @@ sletexp = do
   def <- sexpr
   reserved "in"
   SLet i isRec name ls' retty def <$> sexpr
-
-{--sfix :: P STerm
-sfix   = do i <- getPos
-            reserved "fix"
-            [(f, fty)] <- binder
-            ls <- many binder
-            let ls' = Data.Foldable.concat ls 
-            reservedOp "->"
-            SFix i f fty ls' <$> sexpr
-
-slam :: P STerm
-slam = do i <- getPos
-          reserved "fun"
-          ls <- many binder
-          let ls' = Data.Foldable.concat ls 
-          reservedOp "->"
-          Slam i ls' <$> sexpr --}
-
 
 -- Nota el parser app también parsea un solo atom.
 sapp :: P STerm
@@ -229,7 +203,7 @@ sdecl = do
      name <- var
      ls <- many binder
      let ls' = Data.Foldable.concat ls 
-     reserved ":"
+     reservedOp ":"
      ty <-  typeP
      reservedOp "="
      SDecl i b name ls' ty <$> sexpr

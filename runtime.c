@@ -18,13 +18,13 @@ void *fd4_printn(uint64_t x) {
 	return (void *)x;
 }
 
-void*fd4_sub(uint64_t x, uint64_t y) {
+uint64_t fd4_sub(uint64_t x, uint64_t y) {
 	if (x >y) {
 		return (void *)(x-y);
 	} else return 0;	
 }
 
-void *fd4_mkclosure(void *fun, int amt, ...)
+void** fd4_mkclosure(void *fun, int amt, ...)
 {
 	int i;
 	va_list valist;

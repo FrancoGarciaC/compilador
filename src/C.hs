@@ -6,7 +6,7 @@ import Lang
 import Data.Text (unpack)
 
 decl2doc :: IrDecl -> Doc a
-decl2doc (IrVal n t) = pretty "void*" <+> name n <> semi
+decl2doc (IrVal n t) = pretty "uint64_t" <+> name n <> semi
 decl2doc (IrFun n args tyr t) =
  retTyToDoc tyr <+> name n <+> tupled (map (\(x,t) -> argTytoDoc x t) args) <+>
   braces (nest 2 (line <> pretty "return" <+> (ir2doc t) <> semi) <> line)
@@ -26,7 +26,7 @@ argTytoDoc n NatTy = let pr = pretty "uint64_t " in
 argTytoDoc n (FunTy x t) =  let prettyName = if n == "" then pretty "" else name n in
                             retTyToDoc t <+> pretty " (*" <+> prettyName <> pretty ") (void**, " <+> (argTytoDoc "" x) <+> pretty ")"
 
-argTytoDoc _ _ = error "Esto no debería ocurrir"
+argTytoDoc _ t = error $ "Error: tengo" ++ show t
 
 fd4Main :: [IrDecl] -> Doc a
 fd4Main xs = pretty "uint64_t* fd4main()" 
@@ -76,11 +76,11 @@ prelude = pretty "#include <inttypes.h>"
        <> line
        <> pretty "#include <wchar.h>" 
        <> line
-       <> pretty "extern void *fd4_mkclosure(void*, int, ...);"
+       <> pretty "extern void** fd4_mkclosure(void*, int, ...);"
        <> line
        <> pretty "extern void *fd4_printn(uint64_t);"
        <> line
-       <> pretty "extern void *fd4_sub(uint64_t, uint64_t);"
+       <> pretty "extern uint64_t fd4_sub(uint64_t, uint64_t);"
        <> line
 
 irPrintN :: Doc a -> Doc a
