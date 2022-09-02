@@ -202,9 +202,7 @@ typecheckDecl decl@SDecl {} = do
         typeNoSugar <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
         (Decl p n t) <- desugar decl       
         let dd = (Decl p n (elab t))   
-        printFD4 $ "sin sugar " ++ show (elab t)
         tterm <- tcDecl typeNoSugar dd
-        printFD4 $ "tterm " ++ show tterm
         let dd' = Decl p n tterm
         return $ Just dd'
 
@@ -230,7 +228,6 @@ bytecompileFile filePath = do ds <- loadFile filePath
 
 bytecodeRun :: MonadFD4 m => FilePath -> m()
 bytecodeRun filePath = do bc <- liftIO $ bcRead filePath
-                          printFD4 $ show bc
                           runBC bc
                               
 

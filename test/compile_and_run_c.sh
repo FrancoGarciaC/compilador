@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+echo "aca entra"
 filename="${@%.*}"
 # echo "Compiling and Running $filename  ($PWD)"
 stack run -- -c "$@" ; gcc runtime.c -lgc $filename.c
