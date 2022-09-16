@@ -1,2 +1,2 @@
-let prog : Nat = 24
-
+let suma5  : Nat -> Nat = 
+let res : Nat = suma5 3

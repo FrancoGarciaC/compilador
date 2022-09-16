@@ -187,24 +187,22 @@ typecheckFile opt f = do
     printFD4 $"Chequeando "++f
     printFD4 $ "Opt:" ++ show opt
     decls <- loadFile f
-    error "falta corregir"
-    {- ppterms <- mapM (typecheckDecl >=> (optDeclaration opt).fromJust >=> ppDecl) decls    
-    mapM_ printFD4 ppterms -}
+    ppterms <- mapM (typecheckDeclWithPos >=> (optDeclaration opt).fromJust >=> ppDecl) decls  
+    mapM_ printFD4 ppterms
 
 parseIO ::  MonadFD4 m => String -> P a -> String -> m a
 parseIO filename p x = case runP p x filename of
                   Left e  -> throwError (ParseErr e)
                   Right r -> return r
 
-
-typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe (Decl TTerm))
+typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe ((Decl Term),(Decl TTerm)))
 typecheckDecl decl@SDecl {} = do
         typeNoSugar <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
         (Decl p n t) <- desugar decl       
         let dd = (Decl p n (elab t))   
         tterm <- tcDecl typeNoSugar dd
         let dd' = Decl p n tterm
-        return $ Just dd'
+        return $ Just (dd, dd')
 
 typecheckDecl d@SType {} = do
       let n = sinTypeName d
@@ -212,15 +210,19 @@ typecheckDecl d@SType {} = do
       res <- lookupSinTy n
       case res of
           Just _ -> failFD4 $ "La variable de tipo "++n++" ya fue definida"
-          Nothing -> do v'<-desugarType v                        
+          Nothing -> do v' <- desugarType v                        
                         addSinType n v'
                         return Nothing
 
+typecheckDeclWithPos ::  MonadFD4 m => SDecl STerm -> m (Maybe (Decl Term))
+typecheckDeclWithPos d = typecheckDecl d >>= \d' -> return $ fmap fst d'
 
+typecheckDeclWithType ::  MonadFD4 m => SDecl STerm -> m (Maybe (Decl TTerm))
+typecheckDeclWithType d = typecheckDecl d >>= \d' -> return $ fmap snd d'
 
 bytecompileFile :: MonadFD4 m => FilePath -> m ()
 bytecompileFile filePath = do ds <- loadFile filePath
-                              ds' <- mapM typecheckDecl ds >>= \xs -> return $ map fromJust $ filter isJust xs
+                              ds' <- mapM typecheckDeclWithType ds >>= \xs -> return $ map fromJust $ filter isJust xs
                               bc <- bytecompileModule ds'                              
                               case endBy ".fd4" filePath of 
                                 [path] -> liftIO $ bcWrite bc $ path ++ ".byte"
@@ -239,11 +241,11 @@ handleDecl t d@SDecl {} = do
         let (args,typs) = unzip $ sdeclArgs d
         typs' <- mapM desugarType typs
         let d' = d {sdeclArgs =zip args typs'} { sdeclType = ty'}
-        error "falta corregir"
-        {- (Decl p x tt) <- typecheckDecl d' >>= \d -> return $ fromJust d
+        (Decl p x tt) <- typecheckDeclWithPos d' >>= \d -> return $ fromJust d
         te <- runEval t tt
-        addDecl (Decl p x te) -}
-handleDecl _ d@SType {} = typecheckDecl d >> return ()
+        addDecl (Decl p x te) 
+
+handleDecl _ d@SType {} = typecheckDeclWithPos d >> return ()
 
 data Command = Compile CompileForm
              | PPrint String
@@ -367,14 +369,15 @@ typeCheckPhrase x = do
 
 runEval :: MonadFD4 m => TypeEval -> Term -> m Term
 runEval NEval t = eval t
-runEval CEKEval t = do  d <- search t [] []
-                        return $ fromValtoTerm d
+runEval CEKEval t = search t [] [] >>= \d -> return $ fromValtoTerm d                        
 
 ccFile :: MonadFD4 m => FilePath -> m()
 ccFile filePath = do 
   case endBy ".fd4" filePath of 
     [path] -> do ds <- loadFile filePath
-                 ds' <- mapM typecheckDecl ds >>= \xs -> return $ map fromJust $ filter isJust xs
+    
+                 -- typecheckea y obtiene el tipo de los terminos    
+                 ds' <- mapM typecheckDeclWithType ds >>= \xs -> return $ map fromJust $ filter isJust xs
 
                  -- filtrar sinonimos de tipo
                  let ds2 = filter isSugarDecl ds
