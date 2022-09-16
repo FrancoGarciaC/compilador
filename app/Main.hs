@@ -198,7 +198,7 @@ parseIO filename p x = case runP p x filename of
 typecheckDecl :: MonadFD4 m => SDecl STerm -> m (Maybe ((Decl Term),(Decl TTerm)))
 typecheckDecl decl@SDecl {} = do
         typeNoSugar <- desugarTypeList $ (snd $ unzip $ sdeclArgs decl) ++  [sdeclType decl]
-        (Decl p n t) <- desugar decl       
+        (Decl p n t) <- desugar decl      
         let dd = (Decl p n (elab t))   
         tterm <- tcDecl typeNoSugar dd
         let dd' = Decl p n tterm
@@ -229,8 +229,7 @@ bytecompileFile filePath = do ds <- loadFile filePath
                                 _ -> failFD4 "Error: el archivo debe tener extension .fd4"
 
 bytecodeRun :: MonadFD4 m => FilePath -> m()
-bytecodeRun filePath = do bc <- liftIO $ bcRead filePath
-                          runBC bc
+bytecodeRun filePath = (liftIO $ bcRead filePath) >>= \bc -> runBC bc
                               
 
 
@@ -379,32 +378,39 @@ ccFile filePath = do
                  -- typecheckea y obtiene el tipo de los terminos    
                  ds' <- mapM typecheckDeclWithType ds >>= \xs -> return $ map fromJust $ filter isJust xs
 
-                 -- filtrar sinonimos de tipo
-                 let ds2 = filter isSugarDecl ds
 
-                 -- mapear cada declaracion con su tipo                  
-                 typeMap <- mapM (\d -> let argsTypes = snd $ unzip $ sdeclArgs d in 
+                 -- filtrar sinonimos de tipo
+                 let ds2 = filter isSugarDecl ds                 
+
+                 -- mapear cada declaracion con su tipo y su primer argumento si lo tiene                  
+                 typeMap <- mapM (\d -> let argsTypes = snd $ unzip $ sdeclArgs d
+                                            firstArg = if null argsTypes then Nothing
+                                                       else Just (head argsTypes) in 
                                         desugarTypeList (argsTypes ++ [sdeclType d]) >>= \t ->
-                                        return (sdeclName d,t) ) ds2
-                 
+                                        if   
+                                        map (\())desugarType firstArg >>= \arg -> 
+                                          
+                                        return (sdeclName d, (t, [arg]))) ds2                                      
+                                  
                  let   -- definir cuales son funciones sin argumentos explicitos
                        funcWithoutArgs = filter (\d ->  isFuncWithoutArgs d typeMap) ds2 
 
-                       funcNamesWithoutArgs = map (\d -> sdeclName d) funcWithoutArgs          
-                       info = map (\d ->  let declName = sdeclName d in
-                                        (declName,
-                                         (checkIfIsVal $ fromJust $ lookup declName typeMap,
-                                        sdeclArgs d))
-                                        ) ds2              
+                       funcNamesWithoutArgs = map (\d -> sdeclName d) funcWithoutArgs 
+
+                       -- almacena : 
+                       -- si la funcion es un valor
+                       -- argumentos                               
+                       info = map (\d ->  let declName = sdeclName d 
+                                              (typer, arg) = fromJust $ lookup declName typeMap in
+                                          (declName,(checkIfIsVal typer, arg))
+                                  ) ds2 
 
                        decls = concat $ map (\d ->  fromStateToList d 
                                                                     (fromJust $ lookup (declName d) info)
                                                                     funcNamesWithoutArgs
-                                                                     ) ds'   
-
-                       decls' = IrDecls decls   
+                                                                     ) ds'                                                              
              
-                 liftIO $ writeFile (path ++ ".c") (ir2C decls')
+                 liftIO $ writeFile (path ++ ".c") (ir2C (IrDecls decls))
     _ -> failFD4 "Error: el archivo debe tener extension .fd4" 
 
 
@@ -412,11 +418,11 @@ checkIfIsVal :: Ty -> Bool
 checkIfIsVal NatTy  = True
 checkIfIsVal _  = False
 
-type TyMap = [(Name,Ty)]
+type TyMap = [(Name,(Ty,Ty))]
 
 isFuncWithoutArgs :: SDecl STerm -> TyMap -> Bool          
 isFuncWithoutArgs d m =  let n = sdeclName d in 
-                         if checkIfIsVal (fromJust $ lookup n m) then False
+                         if checkIfIsVal $ fst (fromJust $ lookup n m) then False
                          else null $ sdeclArgs d              
 
 

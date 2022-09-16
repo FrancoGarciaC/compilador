@@ -77,19 +77,16 @@ pattern IFSTOP   = 17
 
 tailCallOpt :: MonadFD4 m => TTerm -> m Bytecode
 
-tailCallOpt (App _ t1 t2) = do -- printFD4 "tc app"
-                               bcT1 <- bc t1
+tailCallOpt (App _ t1 t2) = do bcT1 <- bc t1
                                bcT2 <- bc t2
                                return $ bcT1 ++ bcT2 ++ [TAILCALL]
 
-tailCallOpt (IfZ _ z t1 t2) = do -- printFD4 "tc IfZ"
-                                 bcz <- bc z                             
+tailCallOpt (IfZ _ z t1 t2) = do bcz <- bc z                             
                                  tc1 <- tailCallOpt t1
                                  tc2 <- tailCallOpt t2
                                  return $ [IFZ,length tc1 + 2] ++ bcz ++ [IFSTOP] ++ tc1 ++ [JUMP,length tc2] ++ tc2                            
 
-tailCallOpt (Let _ _ ty m n) = do -- printFD4 "tc Let"
-                                  bcM <- bc m
+tailCallOpt (Let _ _ ty m n) = do bcM <- bc m
                                   tcN <- tailCallOpt n
                                   return $ bcM ++ [SHIFT] ++ tcN
 
@@ -98,46 +95,37 @@ tailCallOpt t = do bcT <- bc t
 
 
 bc :: MonadFD4 m => TTerm -> m Bytecode
-bc (V _ (Bound i)) = do -- -- printFD4 "Estoy en V"
-                        return [ACCESS,i]
-bc (Const _ (CNat n)) = do -- printFD4 "Estoy en Const"
-                           return [CONST,n]
+bc (V _ (Bound i)) = return [ACCESS,i]
+bc (Const _ (CNat n)) = return [CONST,n]
 
-bc (Lam _ n ty t) = do -- -- printFD4 "Estoy en Lam"
-                       bt <- tailCallOpt t
-                       -- bt <- bc t
+bc (Lam _ n ty t) = do -- bt <- tailCallOpt t -- para correr runVM comentar
+                       bt <- bc t -- para correr runVM descomentar
                        return $ [FUNCTION,(length bt) + 1] ++ bt ++ [RETURN]
 
-bc (App _ t1 t2) =  do -- -- printFD4 "Estoy en App"
-                       bc1 <- bc t1
+bc (App _ t1 t2) =  do bc1 <- bc t1
                        bc2 <- bc t2
                        return $ bc1++bc2++[CALL]
 
-bc (Print _ s t) = do -- -- printFD4 "Estoy en Print"
-                      t' <- bc t
+bc (Print _ s t) = do t' <- bc t
                       return $ [PRINT] ++ map ord s ++ [NULL] ++ t' ++ [PRINTN]
 
-bc (BinaryOp _ op t1 t2) = do -- -- printFD4 "Estoy en BinaryOP"
-                              bc1 <- bc t1
+bc (BinaryOp _ op t1 t2) = do bc1 <- bc t1
                               bc2 <- bc t2
                               return $ bc1 ++ bc2 ++ [bcOp op]
 
  where  bcOp Add = ADD
         bcOp Sub = SUB
 
-bc (IfZ _ z t1 t2) = do -- -- printFD4 "Estoy en IfZ"
-                        bcz <- bc z
+bc (IfZ _ z t1 t2) = do bcz <- bc z
                         bc1 <- bc t1
                         bc2 <- bc t2
                         return $ [IFZ,length bc1 + 2] ++ bcz ++ [IFSTOP] ++ bc1 ++ [JUMP,length bc2] ++ bc2
 
-bc (Let _ _ _ t1 t2) = do -- -- printFD4 "Estoy en Let"
-                           bc1 <- bc t1
-                           bc2 <- bc t2
-                           return $ bc1 ++ [SHIFT] ++ bc2 ++ [DROP]
+bc (Let _ _ _ t1 t2) = do bc1 <- bc t1
+                          bc2 <- bc t2
+                          return $ bc1 ++ [SHIFT] ++ bc2 ++ [DROP]
 
-bc (Fix _ _ _ _ _ t) = do -- printFD4 "Estoy en Fix"
-                          bc1 <- bc t
+bc (Fix _ _ _ _ _ t) = do bc1 <- bc t
                           return $ [FUNCTION,(length bc1) + 1] ++ bc1 ++ [RETURN, FIX]
 
 bc t = error $ "Este case no lo vimos " ++ show t
@@ -174,9 +162,7 @@ replaceGlobal = fmap changeGlobal
 
 -- | Toma un bytecode, lo codifica y lo escribe un archivo 
 bcWrite :: Bytecode -> FilePath -> IO ()
-bcWrite bs filename = do  print $ show bs
-                          print $ show (encode $ BC $ fromIntegral <$> bs)
-                          BS.writeFile filename (encode $ BC $ fromIntegral <$> bs)
+bcWrite bs filename = BS.writeFile filename (encode $ BC $ fromIntegral <$> bs)
 
 ---------------------------
 -- * Ejecución de bytecode
@@ -204,82 +190,52 @@ runBC c = runBC' c [] []
 
 runBC' :: MonadFD4 m => Bytecode -> Env -> Stack -> m()
 
-runBC' (CONST:n:c) e s = do -- printFD4 "Estoy en CONST"
-                            -- printFD4 $ "Const:"++show n
-                            runBC' c e (I n:s)
+runBC' (CONST:n:c) e s = runBC' c e (I n:s)
 
-runBC' (ACCESS:i:c) e s = do -- printFD4 "Estoy en ACCESS"
-                             -- printFD4 $ "Index:"++show i
-                             {-case e!!i of
-                               I i -> -- printFD4 $ "Con v :" ++ show i
-                               _ -> -- printFD4 "Tengo fun" -}
-                             runBC' c e (e!!i:s)
+runBC' (ACCESS:i:c) e s = runBC' c e (e!!i:s)
 
-runBC' (ADD:c) e (I n1:I n2:s) = do -- printFD4 "Estoy en ADD"
-                                    -- printFD4 $ "n1:"++show n1++" n2:"++show n2
-                                    runBC' c e (I (n1+n2) :s)
+runBC' (ADD:c) e (I n1:I n2:s) = runBC' c e (I (n1+n2) :s)
 
-runBC' (SUB:c) e (I n1:I n2:s) = do -- printFD4 "Estoy en SUB"
-                                    -- printFD4 $ "n1:" ++ show n1 ++ " n2:" ++ show n2
-                                    let res = max (n2-n1) 0
+runBC' (SUB:c) e (I n1:I n2:s) = do let res = max (n2-n1) 0
                                     runBC' c e (I res :s)
 
-runBC' (CALL:c) e (v:Fun ef cf :s)  = do -- printFD4 "Estoy en CALL"
-                                         -- printFD4 $ "Con valor " ++ show v
-                                         runBC' cf (v:ef) (RA e c:s)
+runBC' (CALL:c) e (v:Fun ef cf :s)  = runBC' cf (v:ef) (RA e c:s)
 
-runBC' (IFZ:ctos:c) e s  =
-          do -- printFD4 "Estoy en IFZ"             
-             runBC' c e (RA e []:I ctos:s)
+runBC' (IFZ:ctos:c) e s  = runBC' c e (RA e []:I ctos:s)
 
-runBC' (IFSTOP:c) _ (I k:RA e _:I ctos:s) | k == 0 = do -- printFD4 "Estoy en caso = 0"
-                                                        runBC' c e s
-                                          | otherwise = do -- printFD4 $ "Estoy en caso != 0 "++show c                                                                                                  
-                                                           runBC' (drop ctos c) e s
+runBC' (IFSTOP:c) _ (I k:RA e _:I ctos:s) | k == 0 = runBC' c e s
+                                          | otherwise = runBC' (drop ctos c) e s
 
 runBC' (JUMP:n:c) e s = runBC' (drop n c) e s                                                           
 
-runBC' (FUNCTION:ctos:c) e s = do -- printFD4 "Estoy en FUNCTION"
-                                  runBC' (drop ctos c) e (Fun e c:s)
+runBC' (FUNCTION:ctos:c) e s = runBC' (drop ctos c) e (Fun e c:s)
 
-runBC' (RETURN:_) _ (v:RA e c:s) = do -- printFD4 "Estoy en RETURN "                                      
-                                      runBC' c e (v:s)
+runBC' (RETURN:_) _ (v:RA e c:s) = runBC' c e (v:s)
 
-runBC' (FIX:c) e (Fun _ cf:s) = do -- printFD4 "Estoy en FIX"
-                                   let efix = Fun efix cf:e
+runBC' (FIX:c) e (Fun _ cf:s) = do let efix = Fun efix cf:e
                                    runBC' c e (Fun efix cf:s)
 
 
-runBC' (PRINTN:c) e q@(I n:s) = do -- printFD4 "Estoy en PRINTN"
-                                   printFD4 $ show n
+runBC' (PRINTN:c) e q@(I n:s) = do printFD4 $ show n
                                    runBC' c e q
 
-runBC' (PRINT:c) e s = do -- printFD4 "Estoy en PRINT"
-                          let (str,c') = decode "" c
+runBC' (PRINT:c) e s = do let (str,c') = decode "" c
                           printFD42 str
                           runBC'  c' e s
-
-
 
   where decode s (NULL:c) = (s,c)
         decode s (x:xs) = decode (s++[chr x]) xs
         decode _ [] = error "111 Esto no debería pasar"
 
+runBC' (SHIFT:c) e (v:s) = runBC' c (v:e) s
 
-
-runBC' (SHIFT:c) e (v:s) = do -- printFD4 "Estoy en SHIFT"
-                              runBC' c (v:e) s
-
-runBC' (DROP:c) (v:e) s = do -- printFD4 "Estoy en DROP"
-                             runBC' c e s
+runBC' (DROP:c) (v:e) s = runBC' c e s
 
 runBC' (STOP:_) _ (I res : xs) = do 
   printFD4 $ show res 
   return ()
 
-runBC' xs e s = do -- printFD4 "Esto no deberia pasar"
-                   error $ "error fatal"
-                   error $ "BC:"++show xs++"\n"++
-                           "Entorno:" ++ show e ++ "\n"++
-                           "Stack:" ++ show s
+runBC' xs e s = error $ "BC:"++show xs++"\n"++
+                        "Entorno:" ++ show e ++ "\n"++
+                        "Stack:" ++ show s
 

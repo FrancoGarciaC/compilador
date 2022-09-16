@@ -182,7 +182,7 @@ getClosureName n = "clo" ++ show n
 -- argumentos 
 -- una lista de funciones sin argumentos explicitos
 fromStateToList :: Decl TTerm -> (Bool,[(Name, Ty)]) -> [Name] -> [IrDecl]
-fromStateToList d info fwa = 
+fromStateToList d info fwa =             
   let dName = declName d
       (term, freeVars, ret) = case declBody d of 
                                Lam (FunTy ta ret) var tv t -> (open var t,[(var,tv)], ret)
@@ -193,8 +193,9 @@ fromStateToList d info fwa =
       args = snd info     
       declArg = let args = snd info in if null args then ("dummy", NatTy) else head args               
       ((tf,_),decls) = runWriter $ runStateT irt 0 
-  in if isVal then decls ++ [IrVal dName tf]
-     else decls ++ [IrFun dName [(dName ++ "_clo",ClosureTy),declArg] ret tf]
+  in if dName == "fib" then error $ show args
+     else if isVal then decls ++ [IrVal dName tf]
+          else decls ++ [IrFun dName [(dName ++ "_clo",ClosureTy),declArg] ret tf]
  
 
 getCod :: Ty -> Ty 
