@@ -373,33 +373,32 @@ runEval CEKEval t = search t [] [] >>= \d -> return $ fromValtoTerm d
 ccFile :: MonadFD4 m => FilePath -> m()
 ccFile filePath = do 
   case endBy ".fd4" filePath of 
-    [path] -> do ds <- loadFile filePath
     
                  -- typecheckea y obtiene el tipo de los terminos    
-                 ds' <- mapM typecheckDeclWithType ds >>= \xs -> return $ map fromJust $ filter isJust xs
-
+                 ds' <- mapM typecheckDeclWit
 
                  -- filtrar sinonimos de tipo
                  let ds2 = filter isSugarDecl ds                 
 
+
                  -- mapear cada declaracion con su tipo y su primer argumento si lo tiene                  
-                 typeMap <- mapM (\d -> let argsTypes = snd $ unzip $ sdeclArgs d
-                                            firstArg = if null argsTypes then Nothing
-                                                       else Just (head argsTypes) in 
+                 typeMap <- mapM (\d -> let args = sdeclArgs d
+                                            argsTypes = snd $ unzip $ args
+                                            fstArg = if null args  then ""
+                                                     else fst $ head args 
+                                        
                                         desugarTypeList (argsTypes ++ [sdeclType d]) >>= \t ->
-                                        if   
-                                        map (\())desugarType firstArg >>= \arg -> 
-                                          
-                                        return (sdeclName d, (t, [arg]))) ds2                                      
+                                      
+                                        return (sdeclName d, (t, fstArg))) ds2                                      
                                   
                  let   -- definir cuales son funciones sin argumentos explicitos
-                       funcWithoutArgs = filter (\d ->  isFuncWithoutArgs d typeMap) ds2 
+                       funcWithoutArgs = filter (\d ->  fst $ isFuncWithoutArgs d typeMap) ds2 
 
                        funcNamesWithoutArgs = map (\d -> sdeclName d) funcWithoutArgs 
 
                        -- almacena : 
                        -- si la funcion es un valor
-                       -- argumentos                               
+                       -- primer argumento                               
                        info = map (\d ->  let declName = sdeclName d 
                                               (typer, arg) = fromJust $ lookup declName typeMap in
                                           (declName,(checkIfIsVal typer, arg))
@@ -418,9 +417,8 @@ checkIfIsVal :: Ty -> Bool
 checkIfIsVal NatTy  = True
 checkIfIsVal _  = False
 
-type TyMap = [(Name,(Ty,Ty))]
 
-isFuncWithoutArgs :: SDecl STerm -> TyMap -> Bool          
+isFuncWithoutArgs :: SDecl STerm -> [(Name,(Ty,Name))] -> Bool          
 isFuncWithoutArgs d m =  let n = sdeclName d in 
                          if checkIfIsVal $ fst (fromJust $ lookup n m) then False
                          else null $ sdeclArgs d              
