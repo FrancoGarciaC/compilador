@@ -179,23 +179,21 @@ getClosureName n = "clo" ++ show n
 
 
 -- declaracion
--- argumentos 
+-- es un valor? 
+-- si tiene primer argumento le damos el nombre y el tipo
 -- una lista de funciones sin argumentos explicitos
-fromStateToList :: Decl TTerm -> (Bool,[(Name, Ty)]) -> [Name] -> [IrDecl]
-fromStateToList d info fwa =             
+fromStateToList :: Decl TTerm -> Bool -> (Name, Ty) -> [Name] -> [IrDecl]
+fromStateToList d isVal fstArg fwa =             
   let dName = declName d
       (term, freeVars, ret) = case declBody d of 
                                Lam (FunTy ta ret) var tv t -> (open var t,[(var,tv)], ret)
                                Fix (FunTy ta ret) ff tf var tv t -> (openN [ff,var] t,[(ff,tf),(var,tv),(dName ++ "_clo",ClosureTy)],ret)
                                t -> (t,[],getInfo t)
-      irt = closureConvert term dName freeVars fwa
-      isVal = fst info
-      args = snd info     
-      declArg = let args = snd info in if null args then ("dummy", NatTy) else head args               
+      irt = closureConvert term dName freeVars fwa      
+      declArg = if fst fstArg == "" then ("dummy", NatTy) else fstArg               
       ((tf,_),decls) = runWriter $ runStateT irt 0 
-  in if dName == "fib" then error $ show args
-     else if isVal then decls ++ [IrVal dName tf]
-          else decls ++ [IrFun dName [(dName ++ "_clo",ClosureTy),declArg] ret tf]
+  in if isVal then decls ++ [IrVal dName tf]
+     else decls ++ [IrFun dName [(dName ++ "_clo",ClosureTy),declArg] ret tf]
  
 
 getCod :: Ty -> Ty 
