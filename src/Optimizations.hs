@@ -97,7 +97,7 @@ constantPropagation (IfZ i c t1 t2) = do (c',change1) <- constantPropagation c
 constantPropagation tt@(Let i n ty t1 t2) = do 
                                                (t1', change1) <- constantPropagation t1
                                                case t1' of
-                                                   (Const _ (CNat n')) -> do (t2',change2) <- constantPropagation $ subst t1' t2
+                                                   (Const _ (CNat n')) -> do (t2',change2) <- constantPropagation $ subst t1' t2                                                                             
                                                                              return  (t2', True)
                                                    
                                                    _ -> return (Let i n ty t1' t2, change1)
@@ -106,10 +106,13 @@ optimizer::MonadFD4 m => Term -> m Term
 optimizer t = do printFD4 "Optimizando"
                  (t1,change1) <- constantPropagation t
                  (t2,change2) <- constantFolding t1      
-                 (t3,change3) <- commonSubexpression t2                          
-                 if change1 || change2 || change3 then optimizer t3
-                 else return t3
-
+                 (t3,change3) <- commonSubexpression t2  
+                 when change1 (printFD4 "Se aplico constant propagation")
+                 when change2 (printFD4 "Se aplico constant folding")
+                 when change3 (printFD4 "Se aplico constant common subexpression")
+                 if change1 || change2 || change3 then optimizer t3                                                          
+                 else return t3                 
+                                                    
 
 optDeclaration :: MonadFD4 m => Bool -> Decl Term -> m (Decl Term)
 optDeclaration opt (Decl p x t) = do     
@@ -117,25 +120,6 @@ optDeclaration opt (Decl p x t) = do
                else return t 
         return $ Decl p x t' 
 
-
-{- Contiene:
-    - Termino
-    - Cantidad de ocurrencias del termino
-    - Profundidad del nodo
-
-data Tm info var =
-    V info var
-  | Const info Const
-  | Lam info Name Ty (Tm info var)
-  | App info (Tm info var) (Tm info var)
-  | Print info String (Tm info var)
-  | BinaryOp info BinaryOp (Tm info var) (Tm info var)
-  | Fix info Name Ty Name Ty (Tm info var)
-  | IfZ info (Tm info var) (Tm info var) (Tm info var)
-  | Let info Name Ty (Tm info var)  (Tm info var)
-  
-  deriving (Show, Functor)
--}
 type Depth = Int
 type SubExpMap = Map.Map ByteString (Term,Int,Depth,Bool)
 type TermMap = Map.Map ByteString Term

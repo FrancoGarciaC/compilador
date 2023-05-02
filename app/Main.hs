@@ -183,9 +183,7 @@ compileFile t f = do
     mapM_ (handleDecl t) decls
 
 typecheckFile ::  MonadFD4 m => Bool -> FilePath -> m ()
-typecheckFile opt f = do
-    printFD4 $"Chequeando "++f
-    printFD4 $ "Opt:" ++ show opt
+typecheckFile opt f = do   
     decls <- loadFile f
     ppterms <- mapM (typecheckDeclWithPos >=> (optDeclaration opt).fromJust >=> ppDecl) decls  
     mapM_ printFD4 ppterms
@@ -222,7 +220,7 @@ typecheckDeclWithType d = typecheckDecl d >>= \d' -> return $ fmap snd d'
 
 bytecompileFile :: MonadFD4 m => FilePath -> m ()
 bytecompileFile filePath = do ds <- loadFile filePath
-                              ds' <- mapM typecheckDeclWithType ds >>= \xs -> return $ map fromJust $ filter isJust xs
+                              ds' <- mapM typecheckDeclWithType ds >>= \xs -> return $ map fromJust $ filter isJust xs                              
                               bc <- bytecompileModule ds'                              
                               case endBy ".fd4" filePath of 
                                 [path] -> liftIO $ bcWrite bc $ path ++ ".byte"
@@ -232,14 +230,12 @@ bytecodeRun :: MonadFD4 m => FilePath -> m()
 bytecodeRun filePath = (liftIO $ bcRead filePath) >>= \bc -> runBC bc
                               
 
-
-
 handleDecl ::  MonadFD4 m => TypeEval -> SDecl STerm -> m ()
 handleDecl t d@SDecl {} = do
         ty' <- desugarType $ sdeclType d
         let (args,typs) = unzip $ sdeclArgs d
         typs' <- mapM desugarType typs
-        let d' = d {sdeclArgs =zip args typs'} { sdeclType = ty'}
+        let d' = d {sdeclArgs = zip args typs'} { sdeclType = ty'}
         (Decl p x tt) <- typecheckDeclWithPos d' >>= \d -> return $ fromJust d
         te <- runEval t tt
         addDecl (Decl p x te) 
